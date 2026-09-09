@@ -1,0 +1,6 @@
+{
+  "name": "Portal Trello CX",
+  "description": "Portal completo para criação e gestão de cards no Trello com suporte a Demandas CX, Cotação de Frete e Cadastros com backend integrado e seguro.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

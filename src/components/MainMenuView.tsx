@@ -1,0 +1,61 @@
+import { FormType } from '../types';
+
+interface MainMenuViewProps {
+  onSelectForm: (type: FormType) => void;
+}
+
+export function MainMenuView({ onSelectForm }: MainMenuViewProps) {
+  return (
+    <div className="py-2">
+      <div className="menu-title">O que você deseja fazer?</div>
+      <div className="menu-sub">Selecione o tipo de solicitação para continuar.</div>
+
+      <div className="menu-list">
+        <button
+          type="button"
+          className="menu-btn menu-btn-demandas"
+          onClick={() => onSelectForm('demandas')}
+        >
+          <span className="menu-btn-icon">📌</span>
+          <span className="menu-btn-body">
+            <span className="menu-btn-title">Demandas</span>
+            <span className="menu-btn-desc">
+              Atrasos, problemas de logística, produção, CC-e e outros
+            </span>
+          </span>
+          <span className="menu-btn-arrow">→</span>
+        </button>
+
+        <button
+          type="button"
+          className="menu-btn menu-btn-frete"
+          onClick={() => onSelectForm('frete')}
+        >
+          <span className="menu-btn-icon">🚚</span>
+          <span className="menu-btn-body">
+            <span className="menu-btn-title">Cotar Frete</span>
+            <span className="menu-btn-desc">
+              Solicitar orçamento de frete com ID do cliente, filial e CEP
+            </span>
+          </span>
+          <span className="menu-btn-arrow">→</span>
+        </button>
+
+        <button
+          type="button"
+          className="menu-btn menu-btn-cadastro"
+          onClick={() => onSelectForm('cadastro')}
+        >
+          <span className="menu-btn-icon">📋</span>
+          <span className="menu-btn-body">
+            <span className="menu-btn-title">Cadastro</span>
+            <span className="menu-btn-desc">
+              Solicitar novo cadastro de cliente com CPF/CNPJ e ID integrador
+            </span>
+          </span>
+          <span className="menu-btn-arrow">→</span>
+        </button>
+      </div>
+    </div>
+  );
+}
