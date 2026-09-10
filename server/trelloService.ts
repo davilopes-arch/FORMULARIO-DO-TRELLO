@@ -14,7 +14,67 @@ const TRELLO_TOKEN = process.env.TRELLO_TOKEN || 'ATTA631fc95a87a351811e61eac186
 const BOARD_ID = process.env.TRELLO_BOARD_ID || '1ongu3oT';
 const API_BASE = 'https://api.trello.com/1';
 
-let cachedBoardData: BoardCachedData | null = null;
+let cachedBoardData: BoardCachedData | null = {
+  boardName: "CADASTRO / DEMANDAS CX/PRODUÇÃO/EXPEDIÇÃO E LOGÍSTICA",
+  lists: [
+    { id: "69a19f10189e922c7c409ea2", name: "CADASTRO" },
+    { id: "69d6aad559189b3b6508c812", name: "SOLICITAÇÃO DE FRETE." },
+    { id: "69713bd2d3693600213b526a", name: "EXEMPLOS" },
+    { id: "69713ab76e8771706acf7a47", name: "A FAZER" },
+    { id: "69713ab76e8771706acf7a48", name: "EM ANDAMENTO" },
+    { id: "6a2c6d7abbffa60db0b540cf", name: "CONCLUÍDO 🎉" }
+  ],
+  labels: [
+    { id: "698b70263b0f4d15184b3548", name: "CADASTROS", color: "yellow_dark" },
+    { id: "6978cee0100dc54ae9f73a85", name: "Farol 🗼", color: "sky_light" },
+    { id: "6978d74174e713b2a7ad1354", name: "Cactus 🌵", color: "lime_light" },
+    { id: "6978d76aafa3e117205ea934", name: "Girassol 🌻", color: "orange_light" },
+    { id: "6978d75e71a73fe83d738ece", name: "Raio ⚡", color: "yellow_light" },
+    { id: "6978d77cfcb3c65ca8d5370f", name: "Clareou 🌅", color: "purple_light" },
+    { id: "69d7be9501d64d67ac3e55a0", name: "FRETE 🚚", color: "purple_light" },
+    { id: "69714497b34f221e71d621df", name: "DONO - DAVI", color: "orange" },
+    { id: "69966c2b08af08ca0737fc04", name: "ATRASO/PROBLEMA NA LOGÍSTICA", color: "yellow" },
+    { id: "6978d7ef38019b2e166824ac", name: "SOLICITAÇÃO INDEVIDA", color: "red_dark" },
+    { id: "6971405097e69aa0aae0fccd", name: "ATRASO/PROBLEMA NA PRODUÇÃO", color: "lime_dark" },
+    { id: "6a285797e7d9630853a7e2f2", name: "HELENA", color: "pink_light" },
+    { id: "69b0873d8f4e7d06196f14c8", name: "CC-e", color: "red" },
+    { id: "69794534dca7e3aa57b1ba89", name: "PENDÊNCIA FISCAL NA ENTREGA", color: "orange_dark" },
+    { id: "6a032fa453e32b07facb7f25", name: "URGENTE", color: "red" },
+    { id: "69b31a0dc73766b45305c57b", name: "RASTREIO DE PEDIDO", color: "sky" },
+    { id: "697a1cdc60ee10bda10081aa", name: "OCORRÊNCIA NA ENTREGA", color: "purple_dark" },
+    { id: "6a302571b2524e8978892d97", name: "DONO - ARTHUR", color: "green_dark" },
+    { id: "69b0877811c4e392517159ea", name: "PREVISÃO DE PRODUÇÃO E EXPEDIÇÃO", color: "purple" },
+    { id: "69e14cf00228e09d2755f94a", name: "ATRASO/PROBLEMA NA EXPEDIÇÃO", color: "black" },
+    { id: "6a0466cf6e3505e65166547e", name: "APENAS  PARA  EXEMPLO", color: "red" },
+    { id: "69713ab76e8771706acf7a3b", name: "CX - ACIONAMENTO DE GARANTIA", color: "sky_dark" },
+    { id: "69713ab76e8771706acf7a3a", name: "CX - AVARIAS", color: "blue_dark" },
+    { id: "6a9af1d2fe77559dd4270c77", name: "Aurora 🌈🌞", color: "pink" },
+    { id: "698b750dd8ecc20e33fa3aa7", name: "REPASSE", color: "blue" },
+    { id: "6a836eca151f3ce8eaaa3a44", name: "CADASTRAR NOVO", color: "orange_dark" },
+    { id: "6a836eca151f3ce8eaaa3a45", name: "GIRASSOL", color: "sky_dark" },
+    { id: "69838edf847c65bd04223483", name: "CANCELAMENTO DE PEDIDO", color: "red" },
+    { id: "6a8c50efae7321c1f588843d", name: "CLAREOU", color: "pink" },
+    { id: "69bc502da18476c4d3a8e7f0", name: "SOU CRED", color: "lime" },
+    { id: "6a4d42360e5cc5e225a304d5", name: "EX-TARIFÁRIO", color: "green_light" },
+    { id: "6a4d3f43c7c3d88e52f244e1", name: "ABRIR CHAMADO", color: "blue" },
+    { id: "6a569509be92f4398b1d3fd5", name: "PREVISÃO DE DESPACHO", color: "lime_dark" },
+    { id: "6a29b2463fd7edfb23ff083e", name: "REGISTRO", color: "lime_dark" },
+    { id: "6a0f45e687962ec82262f9af", name: "AVISO A LOGÍSTICA", color: "lime" },
+    { id: "6a8c50efae7321c1f588843e", name: "Nunca Comprou", color: "orange" },
+    { id: "69c293a551ae5e62b664e8f9", name: "CANCELAR PEDIDO E REALOCAR VALOR", color: "red" },
+    { id: "69b848fe0d5c1532886b1088", name: "FINANCIAMENTO", color: "sky_light" },
+    { id: "69f255cce31daf75d1691360", name: "SOU CRED", color: "orange" },
+    { id: "69e27a084aea8dfb4ceaaa84", name: "MAGENTO", color: "black_light" }
+  ],
+  customFields: {
+    "ESTADO": "69baf5a18d52b1a4c57db0ab",
+    "RCA": "6a0cb9b967bd23ab9842ea2a"
+  },
+  defaultListDemandasId: "69713ab76e8771706acf7a47",
+  defaultListFreteId: "69d6aad559189b3b6508c812",
+  defaultListCadastroId: "69a19f10189e922c7c409ea2",
+  timestamp: 0,
+};
 const CACHE_TTL_MS = 60 * 1000; // 1 minute cache
 
 function buildUrl(endpoint: string, params: Record<string, string> = {}): string {

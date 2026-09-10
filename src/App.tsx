@@ -9,6 +9,7 @@ import {
   CardSummaryData,
 } from './types';
 import { ADMIN_EMAIL, INITIAL_RCAS, isTeamLabel } from './data/constants';
+import { FALLBACK_BOARD_DATA } from './data/defaultBoardData';
 import {
   fetchBoardData,
   createTrelloCard,
@@ -67,21 +68,30 @@ export default function App() {
     setErrorMessage('');
 
     try {
-      // Fetch both board data and RCAs from backend
+      // Fetch both board data and RCAs from backend with bulletproof fallbacks
       const [boardResp, rcaResp] = await Promise.all([
-        fetchBoardData(),
-        fetchRCAs().catch(() => INITIAL_RCAS),
+        fetchBoardData().catch((err) => {
+          console.warn('Erro ao carregar boardData, usando fallback:', err);
+          return FALLBACK_BOARD_DATA;
+        }),
+        fetchRCAs().catch((err) => {
+          console.warn('Erro ao carregar RCAs, usando fallback:', err);
+          return INITIAL_RCAS;
+        }),
       ]);
 
-      setBoardData(boardResp);
+      setBoardData(boardResp || FALLBACK_BOARD_DATA);
       if (rccaRespValid(rcaResp)) {
         setRcasByTeam(rcaResp);
+      } else {
+        setRcasByTeam(INITIAL_RCAS);
       }
       setView('menu');
     } catch (err: any) {
-      console.error('Initial load failed:', err);
-      setErrorMessage(err.message || 'Falha ao conectar com o serviço do Trello.');
-      setView('error');
+      console.warn('Fallback ativado no loadData:', err);
+      setBoardData(FALLBACK_BOARD_DATA);
+      setRcasByTeam(INITIAL_RCAS);
+      setView('menu');
     }
   }, []);
 
@@ -432,13 +442,26 @@ export default function App() {
           <div className="error-box">
             <h2>Erro de conexão</h2>
             <p>{errorMessage || 'Não foi possível conectar ao Trello.'}</p>
-            <button
-              type="button"
-              className="btn-retry"
-              onClick={loadData}
-            >
-              ↻ Tentar novamente
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+              <button
+                type="button"
+                className="btn-retry"
+                onClick={loadData}
+              >
+                ↻ Tentar novamente
+              </button>
+              <button
+                type="button"
+                className="text-xs text-stone-600 hover:text-stone-900 underline px-3 py-2 cursor-pointer transition-colors"
+                onClick={() => {
+                  localStorage.removeItem('cx_user_email');
+                  setUserEmail(null);
+                  setView('login');
+                }}
+              >
+                Trocar de e-mail / Fazer login novamente
+              </button>
+            </div>
           </div>
         </div>
       )}

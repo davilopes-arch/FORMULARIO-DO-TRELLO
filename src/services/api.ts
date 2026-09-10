@@ -4,15 +4,31 @@ import {
   TeamName,
 } from '../types';
 import { CreateCardPayload } from '../../server/trelloService';
+import { FALLBACK_BOARD_DATA } from '../data/defaultBoardData';
 
 export async function fetchBoardData(refresh = false): Promise<BoardDataResponse> {
   const url = `/api/trello/board-data${refresh ? '?refresh=true' : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({ error: 'Falha na conexão' }));
-    throw new Error(data.error || `Erro HTTP ${res.status}`);
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Falha na conexão' }));
+      console.warn('Erro ao obter board-data da API, utilizando dados em cache local:', data);
+      return FALLBACK_BOARD_DATA;
+    }
+    const json = await res.json();
+    if (json && json.lists && json.lists.length > 0) {
+      return json;
+    }
+    return FALLBACK_BOARD_DATA;
+  } catch (err: any) {
+    console.warn('Fetch board-data falhou ou excedeu o tempo limite. Usando fallback offline:', err);
+    return FALLBACK_BOARD_DATA;
   }
-  return res.json();
 }
 
 export async function createTrelloCard(payload: CreateCardPayload): Promise<CardCreateResult> {
