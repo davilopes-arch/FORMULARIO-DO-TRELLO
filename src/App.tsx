@@ -440,15 +440,26 @@ export default function App() {
       {view === 'error' && (
         <div className="py-6">
           <div className="error-box">
-            <h2>Erro de conexão</h2>
-            <p>{errorMessage || 'Não foi possível conectar ao Trello.'}</p>
+            <h2>Erro de conexão ou cache desatualizado</h2>
+            <p>{errorMessage || 'Não foi possível sincronizar em tempo real com o Trello ou seu navegador está exibindo uma versão em cache antiga.'}</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
               <button
                 type="button"
                 className="btn-retry"
-                onClick={loadData}
+                onClick={() => {
+                  setBoardData(FALLBACK_BOARD_DATA);
+                  setRcasByTeam(INITIAL_RCAS);
+                  setView('menu');
+                }}
               >
-                ↻ Tentar novamente
+                ➔ Continuar para o Menu (Usar Dados em Cache)
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 text-xs font-semibold bg-stone-200 text-stone-800 rounded-lg hover:bg-stone-300 transition-colors cursor-pointer"
+                onClick={() => window.location.reload()}
+              >
+                ↻ Recarregar Página (F5)
               </button>
               <button
                 type="button"
@@ -459,7 +470,7 @@ export default function App() {
                   setView('login');
                 }}
               >
-                Trocar de e-mail / Fazer login novamente
+                Trocar de e-mail / Sair
               </button>
             </div>
           </div>

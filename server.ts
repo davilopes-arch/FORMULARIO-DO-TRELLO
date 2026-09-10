@@ -25,9 +25,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // JSON parsing with high limit for images (up to 50MB)
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  // JSON parsing with high limit for images (up to 100MB)
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
   // --- API ROUTES ---
 
