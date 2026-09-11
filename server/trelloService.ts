@@ -358,32 +358,34 @@ export async function deleteBoardLabel(id: string) {
 // --- PORTAL CONFIG PERSISTENCE ON TRELLO (PERMANENT STORAGE) ---
 const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a'; // List EXEMPLOS
-let configCardIdCache: string | null = null;
+let configCardIdCache: string | null = '6aa4159a166ecd038937fbfd';
 
 export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rcas?: Record<string, string[]> } | null> {
-  try {
-    if (configCardIdCache) {
-      try {
-        const card = await trelloFetch<{ id: string; name: string; desc: string }>(
-          `/cards/${configCardIdCache}`,
-          {},
-          { fields: 'id,name,desc' }
-        );
-        if (card && card.desc) {
-          const parsed = JSON.parse(card.desc);
-          return parsed;
-        }
-      } catch {
-        configCardIdCache = null;
+  // 1. Try direct fetch by cached card ID (super fast ~150ms)
+  if (configCardIdCache) {
+    try {
+      const card = await trelloFetch<{ id: string; name: string; desc: string }>(
+        `/cards/${configCardIdCache}`,
+        {},
+        { fields: 'id,name,desc' }
+      );
+      if (card && card.desc) {
+        const parsed = JSON.parse(card.desc);
+        return parsed;
       }
+    } catch {
+      configCardIdCache = null;
     }
+  }
 
-    const cards = await trelloFetch<{ id: string; name: string; desc: string }[]>(
-      `/boards/${BOARD_ID}/cards`,
+  // 2. Try fetching only cards in CONFIG_LIST_ID (EXEMPLOS list, only ~2 cards)
+  try {
+    const listCards = await trelloFetch<{ id: string; name: string; desc: string }[]>(
+      `/lists/${CONFIG_LIST_ID}/cards`,
       {},
       { fields: 'id,name,desc' }
     );
-    const found = cards.find((c) => c.name.includes('[SISTEMA] Configurações de Equipes'));
+    const found = listCards.find((c) => c.name.includes('[SISTEMA] Configurações de Equipes'));
     if (found) {
       configCardIdCache = found.id;
       if (found.desc) {
@@ -391,49 +393,59 @@ export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rc
       }
     }
   } catch (err) {
-    console.error('Erro ao buscar configurações no Trello:', err);
+    console.warn('Erro ao buscar card de config na lista de exemplos:', err);
   }
+
   return null;
 }
 
 export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Record<string, string[]> }): Promise<boolean> {
   try {
     const jsonStr = JSON.stringify(data, null, 2);
+
+    // If cache not set, try to find in CONFIG_LIST_ID (only 2 cards)
     if (!configCardIdCache) {
-      const cards = await trelloFetch<{ id: string; name: string }[]>(
-        `/boards/${BOARD_ID}/cards`,
-        {},
-        { fields: 'id,name' }
-      );
-      const found = cards.find((c) => c.name.includes('[SISTEMA] Configurações de Equipes'));
-      if (found) configCardIdCache = found.id;
+      try {
+        const listCards = await trelloFetch<{ id: string; name: string }[]>(
+          `/lists/${CONFIG_LIST_ID}/cards`,
+          {},
+          { fields: 'id,name' }
+        );
+        const found = listCards.find((c) => c.name.includes('[SISTEMA] Configurações de Equipes'));
+        if (found) configCardIdCache = found.id;
+      } catch {}
     }
 
     if (configCardIdCache) {
-      await trelloFetch(
-        `/cards/${configCardIdCache}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ desc: jsonStr }),
-        }
-      );
-      return true;
-    } else {
-      const newCard = await trelloFetch<{ id: string }>(`/cards`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idList: CONFIG_LIST_ID,
-          name: CONFIG_CARD_NAME,
-          desc: jsonStr,
-          pos: 'bottom',
-        }),
-      });
-      if (newCard && newCard.id) {
-        configCardIdCache = newCard.id;
+      try {
+        await trelloFetch(
+          `/cards/${configCardIdCache}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ desc: jsonStr }),
+          }
+        );
         return true;
+      } catch {
+        configCardIdCache = null;
       }
+    }
+
+    // Create if not found
+    const newCard = await trelloFetch<{ id: string }>(`/cards`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idList: CONFIG_LIST_ID,
+        name: CONFIG_CARD_NAME,
+        desc: jsonStr,
+        pos: 'bottom',
+      }),
+    });
+    if (newCard && newCard.id) {
+      configCardIdCache = newCard.id;
+      return true;
     }
   } catch (err) {
     console.error('Erro ao salvar configurações no Trello:', err);

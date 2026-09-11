@@ -14,7 +14,7 @@ export const DEFAULT_TEAMS: TeamInfo[] = [
   { id: 'farol', nome: 'Farol', emoji: '🗼' },
   { id: 'cactus', nome: 'Cactus', emoji: '🌵' },
   { id: 'girassol', nome: 'Girassol', emoji: '🌻' },
-  { id: 'raio', nome: 'Raio', emoji: '⚡' },
+  { id: 'raio', nome: 'Aurora', emoji: '🌈' },
   { id: 'clareou', nome: 'Clareou', emoji: '🌅' },
 ];
 
@@ -30,6 +30,12 @@ const DEFAULT_RCAS: Record<string, string[]> = {
     'CHRISTIANO ARAUJO', 'CLAUDETH SANTOS', 'CLEITON OLIVEIRA', 'GILLIARD BARBOSA',
     'ISMAEL HEBSTER', 'JAMES FERREIRA', 'MARCIO WENDELL', 'PATRICIA SANTOS',
     'RAMON BATISTA', 'RAPHAELA OLIVEIRA', 'ROSALY RIBEIRO', 'VICTOR TORRES'
+  ],
+  Aurora: [
+    'ANCELMO RODRIGUES', 'BRUNO SOUZA', 'DANILO DIAS', 'HARD TRAJANO',
+    'IVAN FERNANDES', 'KARLANY PAIVA', 'LUCAS ARCANJO', 'LUCAS TADEU',
+    'MARCELO MOREIRA', 'MARIANA COSTA', 'MILENA BRITO', 'RAFAEL FAUSTINO',
+    'ERIK PINHHEIRO', 'OLIVER ORHAND'
   ],
   Raio: [
     'ANCELMO RODRIGUES', 'BRUNO SOUZA', 'DANILO DIAS', 'HARD TRAJANO',
@@ -148,12 +154,14 @@ export async function syncWithTrelloCloud(): Promise<void> {
 // Initial sync with Trello in background
 syncWithTrelloCloud().catch(() => {});
 
-function persistAll() {
+async function persistAll(): Promise<void> {
   saveTeamsToDisk();
   saveRcasToDisk();
-  savePortalConfigToTrello({ teams: currentTeams, rcas: currentRCAs }).catch((err) => {
+  try {
+    await savePortalConfigToTrello({ teams: currentTeams, rcas: currentRCAs });
+  } catch (err) {
     console.error('Erro ao persistir no Trello:', err);
-  });
+  }
 }
 
 // --- TEAMS MANAGEMENT ---
@@ -162,7 +170,7 @@ export function getTeams(): TeamInfo[] {
   return currentTeams;
 }
 
-export function addTeam(nome: string, emoji: string): { success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> } {
+export async function addTeam(nome: string, emoji: string): Promise<{ success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> }> {
   const cleanName = nome.trim();
   const cleanEmoji = emoji.trim() || '⚡';
   if (!cleanName) return { success: false, error: 'Nome da equipe é obrigatório' };
@@ -178,14 +186,14 @@ export function addTeam(nome: string, emoji: string): { success: boolean; error?
     currentRCAs[cleanName] = [];
   }
 
-  persistAll();
+  await persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
-export function updateTeam(
+export async function updateTeam(
   id: string,
   updates: { nome?: string; emoji?: string }
-): { success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> } {
+): Promise<{ success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> }> {
   const team = currentTeams.find((t) => t.id === id || t.nome.toLowerCase() === id.toLowerCase());
   if (!team) return { success: false, error: 'Equipe não encontrada' };
 
@@ -219,11 +227,11 @@ export function updateTeam(
     }
   }
 
-  persistAll();
+  await persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
-export function removeTeam(id: string): { success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> } {
+export async function removeTeam(id: string): Promise<{ success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> }> {
   if (currentTeams.length <= 1) {
     return { success: false, error: 'É necessário manter pelo menos uma equipe' };
   }
@@ -232,13 +240,13 @@ export function removeTeam(id: string): { success: boolean; error?: string; team
   if (teamIdx === -1) return { success: false, error: 'Equipe não encontrada' };
 
   const [removed] = currentTeams.splice(teamIdx, 1);
-  persistAll();
+  await persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
-export function resetTeams(): { success: boolean; teams: TeamInfo[]; rcas: Record<string, string[]> } {
+export async function resetTeams(): Promise<{ success: boolean; teams: TeamInfo[]; rcas: Record<string, string[]> }> {
   currentTeams = [...DEFAULT_TEAMS];
-  persistAll();
+  await persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
@@ -248,7 +256,7 @@ export function getRCAs(): Record<string, string[]> {
   return currentRCAs;
 }
 
-export function addRCA(team: string, name: string): { success: boolean; error?: string } {
+export async function addRCA(team: string, name: string): Promise<{ success: boolean; error?: string }> {
   const cleanName = name.trim().toUpperCase();
   if (!cleanName) return { success: false, error: 'Nome inválido' };
   if (!currentRCAs[team]) currentRCAs[team] = [];
@@ -257,11 +265,11 @@ export function addRCA(team: string, name: string): { success: boolean; error?: 
   }
   currentRCAs[team].push(cleanName);
   currentRCAs[team].sort();
-  persistAll();
+  await persistAll();
   return { success: true };
 }
 
-export function renameRCA(team: string, oldName: string, newName: string): { success: boolean; error?: string } {
+export async function renameRCA(team: string, oldName: string, newName: string): Promise<{ success: boolean; error?: string }> {
   const cleanNewName = newName.trim().toUpperCase();
   if (!cleanNewName) return { success: false, error: 'Novo nome inválido' };
   const list = currentRCAs[team] || [];
@@ -270,17 +278,17 @@ export function renameRCA(team: string, oldName: string, newName: string): { suc
 
   list[idx] = cleanNewName;
   list.sort();
-  persistAll();
+  await persistAll();
   return { success: true };
 }
 
-export function removeRCA(team: string, name: string): { success: boolean; error?: string } {
+export async function removeRCA(team: string, name: string): Promise<{ success: boolean; error?: string }> {
   const list = currentRCAs[team] || [];
   const beforeLen = list.length;
   currentRCAs[team] = list.filter((n) => n !== name);
   if (currentRCAs[team].length === beforeLen) {
     return { success: false, error: 'Consultor não encontrado' };
   }
-  persistAll();
+  await persistAll();
   return { success: true };
 }

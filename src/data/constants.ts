@@ -6,7 +6,7 @@ export const DEFAULT_TEAMS: TeamInfo[] = [
   { id: 'farol', nome: 'Farol', emoji: '🗼' },
   { id: 'cactus', nome: 'Cactus', emoji: '🌵' },
   { id: 'girassol', nome: 'Girassol', emoji: '🌻' },
-  { id: 'raio', nome: 'Raio', emoji: '⚡' },
+  { id: 'raio', nome: 'Aurora', emoji: '🌈' },
   { id: 'clareou', nome: 'Clareou', emoji: '🌅' },
 ];
 
@@ -16,6 +16,7 @@ export const EQ_EMOJI: Record<string, string> = {
   Farol: '🗼',
   Cactus: '🌵',
   Girassol: '🌻',
+  Aurora: '🌈',
   Raio: '⚡',
   Clareou: '🌅',
 };
@@ -32,6 +33,12 @@ export const INITIAL_RCAS: Record<TeamName, string[]> = {
     'CHRISTIANO ARAUJO', 'CLAUDETH SANTOS', 'CLEITON OLIVEIRA', 'GILLIARD BARBOSA',
     'ISMAEL HEBSTER', 'JAMES FERREIRA', 'MARCIO WENDELL', 'PATRICIA SANTOS',
     'RAMON BATISTA', 'RAPHAELA OLIVEIRA', 'ROSALY RIBEIRO', 'VICTOR TORRES'
+  ],
+  Aurora: [
+    'ANCELMO RODRIGUES', 'BRUNO SOUZA', 'DANILO DIAS', 'HARD TRAJANO',
+    'IVAN FERNANDES', 'KARLANY PAIVA', 'LUCAS ARCANJO', 'LUCAS TADEU',
+    'MARCELO MOREIRA', 'MARIANA COSTA', 'MILENA BRITO', 'RAFAEL FAUSTINO',
+    'ERIK PINHHEIRO', 'OLIVER ORHAND'
   ],
   Raio: [
     'ANCELMO RODRIGUES', 'BRUNO SOUZA', 'DANILO DIAS', 'HARD TRAJANO',

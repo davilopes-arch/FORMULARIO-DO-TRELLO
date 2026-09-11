@@ -102,16 +102,18 @@ export default function App() {
           return FALLBACK_BOARD_DATA;
         }),
         fetchRCAs().catch((err) => {
-          console.warn('Erro ao carregar RCAs, usando fallback:', err);
-          return INITIAL_RCAS;
+          console.warn('Erro ao carregar RCAs do backend:', err);
+          return null;
         }),
         fetchTeams().catch((err) => {
-          console.warn('Erro ao carregar Equipes, usando fallback:', err);
-          return DEFAULT_TEAMS;
+          console.warn('Erro ao carregar Equipes do backend:', err);
+          return null;
         }),
       ]);
 
       setBoardData(boardResp || FALLBACK_BOARD_DATA);
+
+      // Handle RCAs
       if (rccaRespValid(rcaResp)) {
         setRcasByTeam(rcaResp);
         localStorage.setItem('cx_rcas_data', JSON.stringify(rcaResp));
@@ -120,11 +122,14 @@ export default function App() {
         if (localRcas) {
           try {
             const parsed = JSON.parse(localRcas);
-            if (parsed && typeof parsed === 'object') setRcasByTeam(parsed);
+            if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+              setRcasByTeam(parsed);
+            }
           } catch {}
         }
       }
 
+      // Handle Teams
       if (Array.isArray(teamsResp) && teamsResp.length > 0) {
         setTeams(teamsResp);
         localStorage.setItem('cx_teams_data', JSON.stringify(teamsResp));
@@ -133,7 +138,9 @@ export default function App() {
         if (localTeams) {
           try {
             const parsed = JSON.parse(localTeams);
-            if (Array.isArray(parsed) && parsed.length > 0) setTeams(parsed);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setTeams(parsed);
+            }
           } catch {}
         }
       }
@@ -142,13 +149,23 @@ export default function App() {
     } catch (err: any) {
       console.warn('Fallback ativado no loadData:', err);
       setBoardData(FALLBACK_BOARD_DATA);
-      setRcasByTeam(INITIAL_RCAS);
+      const localRcas = localStorage.getItem('cx_rcas_data');
+      if (localRcas) {
+        try {
+          const parsed = JSON.parse(localRcas);
+          if (parsed && typeof parsed === 'object') setRcasByTeam(parsed);
+        } catch {
+          setRcasByTeam(INITIAL_RCAS);
+        }
+      } else {
+        setRcasByTeam(INITIAL_RCAS);
+      }
       setView('menu');
     }
   }, []);
 
   function rccaRespValid(res: any): res is Record<TeamName, string[]> {
-    return res && typeof res === 'object' && 'Farol' in res;
+    return res && typeof res === 'object' && Object.keys(res).length > 0;
   }
 
   useEffect(() => {
