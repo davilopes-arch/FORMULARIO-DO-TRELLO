@@ -349,21 +349,40 @@ export default function App() {
 
   // Label Admin Handlers
   const handleAddLabel = async (name: string) => {
-    await createBoardLabel(name, 'blue');
-    const fresh = await fetchBoardData(true);
-    setBoardData(fresh);
+    const created = await createBoardLabel(name, 'blue');
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      const exists = prev.labels.some((l) => l.id === created.id);
+      return {
+        ...prev,
+        labels: exists ? prev.labels : [...prev.labels, created],
+      };
+    });
+    fetchBoardData(true).then((fresh) => setBoardData(fresh)).catch(() => {});
   };
 
   const handleRenameLabel = async (id: string, name: string) => {
     await updateBoardLabel(id, name);
-    const fresh = await fetchBoardData(true);
-    setBoardData(fresh);
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        labels: prev.labels.map((l) => (l.id === id ? { ...l, name } : l)),
+      };
+    });
+    fetchBoardData(true).then((fresh) => setBoardData(fresh)).catch(() => {});
   };
 
   const handleRemoveLabel = async (id: string, _name: string) => {
     await deleteBoardLabel(id);
-    const fresh = await fetchBoardData(true);
-    setBoardData(fresh);
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        labels: prev.labels.filter((l) => l.id !== id),
+      };
+    });
+    fetchBoardData(true).then((fresh) => setBoardData(fresh)).catch(() => {});
   };
 
   // Submit Demandas

@@ -5,7 +5,7 @@ import {
   createBoardLabel,
   updateBoardLabel,
   deleteBoardLabel,
-  CreateCardPayload,
+  type CreateCardPayload,
 } from './trelloService.ts';
 import {
   getRCAs,
@@ -18,7 +18,7 @@ import {
   removeTeam,
   resetTeams,
   syncWithTrelloCloud,
-  TeamName,
+  type TeamName,
 } from './rcaService.ts';
 
 const app = express();
@@ -74,41 +74,54 @@ apiRouter.post('/trello/cards', async (req, res) => {
 // 3. Create Label (Situação)
 apiRouter.post('/trello/labels', async (req, res) => {
   try {
-    const { name, color } = req.body;
+    const name = (req.body?.name || req.query?.name || '').toString().trim();
+    const color = (req.body?.color || req.query?.color || 'blue').toString();
     if (!name) return res.status(400).json({ error: 'Nome da situação é obrigatório' });
-    const label = await createBoardLabel(name, color || 'blue');
+    const label = await createBoardLabel(name, color);
     res.status(201).json(label);
   } catch (error: any) {
     console.error('Error creating label:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Erro ao criar situação' });
   }
 });
 
-// 4. Update Label Name
-apiRouter.put('/trello/labels/:id', async (req, res) => {
+// 4. Update Label Name (supports PUT, POST, with param or body)
+const handleLabelUpdate = async (req: express.Request, res: express.Response) => {
   try {
-    const { id } = req.params;
-    const { name } = req.body;
+    const id = (req.params.id || req.body?.id || req.query?.id || '').toString().trim();
+    const name = (req.body?.name || req.query?.name || '').toString().trim();
+    if (!id) return res.status(400).json({ error: 'ID da situação é obrigatório' });
     if (!name) return res.status(400).json({ error: 'Novo nome é obrigatório' });
     const updated = await updateBoardLabel(id, name);
     res.json(updated);
   } catch (error: any) {
     console.error('Error updating label:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Erro ao renomear situação' });
   }
-});
+};
 
-// 5. Delete Label
-apiRouter.delete('/trello/labels/:id', async (req, res) => {
+apiRouter.put('/trello/labels/:id', handleLabelUpdate);
+apiRouter.put('/trello/labels', handleLabelUpdate);
+apiRouter.post('/trello/labels/update', handleLabelUpdate);
+apiRouter.post('/trello/labels/:id/update', handleLabelUpdate);
+
+// 5. Delete Label (supports DELETE, POST, with param or body)
+const handleLabelDelete = async (req: express.Request, res: express.Response) => {
   try {
-    const { id } = req.params;
+    const id = (req.params.id || req.body?.id || req.query?.id || '').toString().trim();
+    if (!id) return res.status(400).json({ error: 'ID da situação é obrigatório' });
     const result = await deleteBoardLabel(id);
     res.json(result);
   } catch (error: any) {
     console.error('Error deleting label:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Erro ao excluir situação' });
   }
-});
+};
+
+apiRouter.delete('/trello/labels/:id', handleLabelDelete);
+apiRouter.delete('/trello/labels', handleLabelDelete);
+apiRouter.post('/trello/labels/delete', handleLabelDelete);
+apiRouter.post('/trello/labels/:id/delete', handleLabelDelete);
 
 // 6. RCA Management (Persistent across sessions/devices)
 apiRouter.get('/rcas', async (req, res) => {

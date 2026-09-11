@@ -55,34 +55,85 @@ export async function createBoardLabel(name: string, color = 'blue'): Promise<{ 
     body: JSON.stringify({ name, color }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao criar situação' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
+    const errorText = await res.text().catch(() => '');
+    let errMsg = 'Erro ao criar situação';
+    try {
+      const errJson = JSON.parse(errorText);
+      errMsg = errJson.error || errJson.message || errMsg;
+    } catch {
+      if (errorText) errMsg = errorText;
+    }
+    throw new Error(errMsg);
   }
   return res.json();
 }
 
 export async function updateBoardLabel(id: string, name: string): Promise<{ id: string; name: string }> {
-  const res = await fetch(`/api/trello/labels/${encodeURIComponent(id)}`, {
-    method: 'PUT',
+  // 1. Try PUT /api/trello/labels/:id first
+  try {
+    const res = await fetch(`/api/trello/labels/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, id }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  // 2. Fallback to POST /api/trello/labels/update
+  const resFallback = await fetch('/api/trello/labels/update', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ id, name }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao renomear situação' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
+
+  if (!resFallback.ok) {
+    const errorText = await resFallback.text().catch(() => '');
+    let errMsg = 'Erro ao renomear situação';
+    try {
+      const errJson = JSON.parse(errorText);
+      errMsg = errJson.error || errJson.message || errMsg;
+    } catch {
+      if (errorText) errMsg = errorText;
+    }
+    throw new Error(errMsg);
   }
-  return res.json();
+  return resFallback.json();
 }
 
 export async function deleteBoardLabel(id: string): Promise<{ success: boolean }> {
-  const res = await fetch(`/api/trello/labels/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
+  // 1. Try DELETE /api/trello/labels/:id first
+  try {
+    const res = await fetch(`/api/trello/labels/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  // 2. Fallback to POST /api/trello/labels/delete
+  const resFallback = await fetch('/api/trello/labels/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao excluir situação' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
+
+  if (!resFallback.ok) {
+    const errorText = await resFallback.text().catch(() => '');
+    let errMsg = 'Erro ao excluir situação';
+    try {
+      const errJson = JSON.parse(errorText);
+      errMsg = errJson.error || errJson.message || errMsg;
+    } catch {
+      if (errorText) errMsg = errorText;
+    }
+    throw new Error(errMsg);
   }
-  return res.json();
+  return resFallback.json();
 }
 
 export async function fetchRCAs(): Promise<Record<TeamName, string[]>> {

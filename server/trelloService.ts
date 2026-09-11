@@ -334,17 +334,23 @@ export async function createBoardLabel(name: string, color = 'blue') {
 }
 
 export async function updateBoardLabel(id: string, name: string) {
-  const res = await trelloFetch<{ id: string; name: string }>(
-    `/labels/${id}/name`,
-    {
-      method: 'PUT',
-    },
-    {
-      value: name,
-    }
-  );
-  invalidateBoardCache();
-  return res;
+  try {
+    const res = await trelloFetch<{ id: string; name: string }>(
+      `/labels/${id}`,
+      { method: 'PUT' },
+      { name }
+    );
+    invalidateBoardCache();
+    return res;
+  } catch {
+    const res = await trelloFetch<{ id: string; name: string }>(
+      `/labels/${id}/name`,
+      { method: 'PUT' },
+      { value: name }
+    );
+    invalidateBoardCache();
+    return res;
+  }
 }
 
 export async function deleteBoardLabel(id: string) {
