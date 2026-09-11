@@ -1,0 +1,27 @@
+[
+  {
+    "id": "farol",
+    "nome": "Farol",
+    "emoji": "🗼"
+  },
+  {
+    "id": "cactus",
+    "nome": "Cactus",
+    "emoji": "🌵"
+  },
+  {
+    "id": "girassol",
+    "nome": "Girassol",
+    "emoji": "🌻"
+  },
+  {
+    "id": "raio",
+    "nome": "Aurora",
+    "emoji": "🌈"
+  },
+  {
+    "id": "clareou",
+    "nome": "Clareou",
+    "emoji": "🌅"
+  }
+]

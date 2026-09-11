@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { fetchPortalConfigFromTrello, savePortalConfigToTrello } from './trelloService.ts';
 
 export type TeamName = string;
 
@@ -123,6 +124,38 @@ function saveTeamsToDisk() {
 // Initial load
 loadFromDisk();
 
+let isTrelloSynced = false;
+
+export async function syncWithTrelloCloud(): Promise<void> {
+  try {
+    const config = await fetchPortalConfigFromTrello();
+    if (config) {
+      if (Array.isArray(config.teams) && config.teams.length > 0) {
+        currentTeams = config.teams;
+        saveTeamsToDisk();
+      }
+      if (config.rcas && typeof config.rcas === 'object' && Object.keys(config.rcas).length > 0) {
+        currentRCAs = { ...DEFAULT_RCAS, ...config.rcas };
+        saveRcasToDisk();
+      }
+      isTrelloSynced = true;
+    }
+  } catch (err) {
+    console.error('Falha ao sincronizar com Trello:', err);
+  }
+}
+
+// Initial sync with Trello in background
+syncWithTrelloCloud().catch(() => {});
+
+function persistAll() {
+  saveTeamsToDisk();
+  saveRcasToDisk();
+  savePortalConfigToTrello({ teams: currentTeams, rcas: currentRCAs }).catch((err) => {
+    console.error('Erro ao persistir no Trello:', err);
+  });
+}
+
 // --- TEAMS MANAGEMENT ---
 
 export function getTeams(): TeamInfo[] {
@@ -145,8 +178,7 @@ export function addTeam(nome: string, emoji: string): { success: boolean; error?
     currentRCAs[cleanName] = [];
   }
 
-  saveTeamsToDisk();
-  saveRcasToDisk();
+  persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
@@ -187,8 +219,7 @@ export function updateTeam(
     }
   }
 
-  saveTeamsToDisk();
-  saveRcasToDisk();
+  persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
@@ -201,13 +232,13 @@ export function removeTeam(id: string): { success: boolean; error?: string; team
   if (teamIdx === -1) return { success: false, error: 'Equipe não encontrada' };
 
   const [removed] = currentTeams.splice(teamIdx, 1);
-  saveTeamsToDisk();
+  persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
 export function resetTeams(): { success: boolean; teams: TeamInfo[]; rcas: Record<string, string[]> } {
   currentTeams = [...DEFAULT_TEAMS];
-  saveTeamsToDisk();
+  persistAll();
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
@@ -226,7 +257,7 @@ export function addRCA(team: string, name: string): { success: boolean; error?: 
   }
   currentRCAs[team].push(cleanName);
   currentRCAs[team].sort();
-  saveRcasToDisk();
+  persistAll();
   return { success: true };
 }
 
@@ -239,7 +270,7 @@ export function renameRCA(team: string, oldName: string, newName: string): { suc
 
   list[idx] = cleanNewName;
   list.sort();
-  saveRcasToDisk();
+  persistAll();
   return { success: true };
 }
 
@@ -250,6 +281,6 @@ export function removeRCA(team: string, name: string): { success: boolean; error
   if (currentRCAs[team].length === beforeLen) {
     return { success: false, error: 'Consultor não encontrado' };
   }
-  saveRcasToDisk();
+  persistAll();
   return { success: true };
 }

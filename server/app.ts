@@ -17,6 +17,7 @@ import {
   updateTeam,
   removeTeam,
   resetTeams,
+  syncWithTrelloCloud,
   TeamName,
 } from './rcaService.ts';
 
@@ -110,7 +111,8 @@ apiRouter.delete('/trello/labels/:id', async (req, res) => {
 });
 
 // 6. RCA Management (Persistent across sessions/devices)
-apiRouter.get('/rcas', (req, res) => {
+apiRouter.get('/rcas', async (req, res) => {
+  await syncWithTrelloCloud().catch(() => {});
   res.json(getRCAs());
 });
 
@@ -141,7 +143,8 @@ apiRouter.delete('/rcas', (req, res) => {
 });
 
 // 7. Teams Management (Editable name and icon/emoji with persistence)
-apiRouter.get('/teams', (req, res) => {
+apiRouter.get('/teams', async (req, res) => {
+  await syncWithTrelloCloud().catch(() => {});
   res.json(getTeams());
 });
 

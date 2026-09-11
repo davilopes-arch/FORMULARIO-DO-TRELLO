@@ -50,7 +50,16 @@ export default function App() {
   const [view, setView] = useState<ViewState>('loading');
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [boardData, setBoardData] = useState<BoardDataResponse | null>(null);
-  const [rcasByTeam, setRcasByTeam] = useState<Record<TeamName, string[]>>(INITIAL_RCAS);
+  const [rcasByTeam, setRcasByTeam] = useState<Record<TeamName, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('cx_rcas_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_RCAS;
+  });
   const [teams, setTeams] = useState<TeamInfo[]>(() => {
     try {
       const saved = localStorage.getItem('cx_teams_data');
@@ -105,13 +114,28 @@ export default function App() {
       setBoardData(boardResp || FALLBACK_BOARD_DATA);
       if (rccaRespValid(rcaResp)) {
         setRcasByTeam(rcaResp);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(rcaResp));
       } else {
-        setRcasByTeam(INITIAL_RCAS);
+        const localRcas = localStorage.getItem('cx_rcas_data');
+        if (localRcas) {
+          try {
+            const parsed = JSON.parse(localRcas);
+            if (parsed && typeof parsed === 'object') setRcasByTeam(parsed);
+          } catch {}
+        }
       }
 
       if (Array.isArray(teamsResp) && teamsResp.length > 0) {
         setTeams(teamsResp);
         localStorage.setItem('cx_teams_data', JSON.stringify(teamsResp));
+      } else {
+        const localTeams = localStorage.getItem('cx_teams_data');
+        if (localTeams) {
+          try {
+            const parsed = JSON.parse(localTeams);
+            if (Array.isArray(parsed) && parsed.length > 0) setTeams(parsed);
+          } catch {}
+        }
       }
 
       setView('menu');
@@ -162,16 +186,19 @@ export default function App() {
   const handleAddRCA = async (team: TeamName, name: string) => {
     const updated = await addRCAApi(team, name);
     setRcasByTeam(updated);
+    localStorage.setItem('cx_rcas_data', JSON.stringify(updated));
   };
 
   const handleRenameRCA = async (team: TeamName, oldName: string, newName: string) => {
     const updated = await renameRCAApi(team, oldName, newName);
     setRcasByTeam(updated);
+    localStorage.setItem('cx_rcas_data', JSON.stringify(updated));
   };
 
   const handleRemoveRCA = async (team: TeamName, name: string) => {
     const updated = await removeRCAApi(team, name);
     setRcasByTeam(updated);
+    localStorage.setItem('cx_rcas_data', JSON.stringify(updated));
   };
 
   // Equipe Admin Handlers
@@ -208,6 +235,7 @@ export default function App() {
       nextRcas[newName] = nextRcas[oldName];
       delete nextRcas[oldName];
       setRcasByTeam(nextRcas);
+      localStorage.setItem('cx_rcas_data', JSON.stringify(nextRcas));
     }
 
     // 2. Synchronize with backend API
@@ -219,6 +247,7 @@ export default function App() {
       }
       if (resp && resp.rcas) {
         setRcasByTeam(resp.rcas);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
       }
     } catch (err) {
       console.warn('Backend sync failed, changes kept locally:', err);
@@ -236,7 +265,11 @@ export default function App() {
     localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
 
     if (!rcasByTeam[cleanNome]) {
-      setRcasByTeam((prev) => ({ ...prev, [cleanNome]: [] }));
+      setRcasByTeam((prev) => {
+        const next = { ...prev, [cleanNome]: [] };
+        localStorage.setItem('cx_rcas_data', JSON.stringify(next));
+        return next;
+      });
     }
 
     try {
@@ -247,6 +280,7 @@ export default function App() {
       }
       if (resp && resp.rcas) {
         setRcasByTeam(resp.rcas);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
       }
     } catch (err) {
       console.warn('Backend sync failed, changes kept locally:', err);
@@ -268,6 +302,7 @@ export default function App() {
       }
       if (resp && resp.rcas) {
         setRcasByTeam(resp.rcas);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
       }
     } catch (err) {
       console.warn('Backend sync failed, changes kept locally:', err);
@@ -277,6 +312,8 @@ export default function App() {
   const handleResetTeams = async () => {
     setTeams(DEFAULT_TEAMS);
     localStorage.setItem('cx_teams_data', JSON.stringify(DEFAULT_TEAMS));
+    setRcasByTeam(INITIAL_RCAS);
+    localStorage.setItem('cx_rcas_data', JSON.stringify(INITIAL_RCAS));
 
     try {
       const resp = await resetTeamsApi();
@@ -286,6 +323,7 @@ export default function App() {
       }
       if (resp && resp.rcas) {
         setRcasByTeam(resp.rcas);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
       }
     } catch (err) {
       console.warn('Backend sync failed, reset kept locally:', err);
