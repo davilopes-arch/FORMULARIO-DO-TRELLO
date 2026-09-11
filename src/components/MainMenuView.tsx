@@ -8,7 +8,10 @@ interface MainMenuViewProps {
 export function MainMenuView({ onSelectForm, onOpenEquipeModal }: MainMenuViewProps) {
   return (
     <div className="py-2">
-      <div className="menu-title">O que você deseja fazer?</div>
+      <div className="menu-title flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-[var(--solar)] inline-block" />
+        O que você deseja fazer?
+      </div>
       <div className="menu-sub">Selecione o tipo de solicitação para continuar.</div>
 
       <div className="menu-list">
@@ -62,7 +65,7 @@ export function MainMenuView({ onSelectForm, onOpenEquipeModal }: MainMenuViewPr
         <div className="pt-4 flex justify-center">
           <button
             type="button"
-            className="text-xs font-mono font-semibold text-[var(--ink2)] hover:text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border2)] px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+            className="text-xs font-mono font-semibold text-[var(--ink2)] hover:text-[var(--solar-dark)] bg-[var(--surface)] hover:bg-[var(--solar-bg)] border border-[var(--border2)] hover:border-[var(--solar-bd)] px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-xs cursor-pointer"
             onClick={onOpenEquipeModal}
             title="Gerenciar nomes e ícones das equipes"
           >

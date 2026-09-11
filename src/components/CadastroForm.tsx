@@ -149,16 +149,6 @@ export function CadastroForm({
         ← Menu principal
       </button>
 
-      <div className="cadastro-header">
-        <div className="cadastro-badge">📋 Novo Cadastro</div>
-        <h2>
-          Novo <em>Cadastro</em>
-        </h2>
-        <p>
-          Preencha os dados abaixo para criar um card na lista <strong>CADASTRO</strong> com todas as informações do cliente.
-        </p>
-      </div>
-
       <div className="form-body">
         {/* NOME E TITULO DO CARD */}
         <div className={`field ${errors.titulo ? 'invalid' : ''}`} id="fc-titulo">

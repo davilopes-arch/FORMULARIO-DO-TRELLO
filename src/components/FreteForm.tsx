@@ -127,17 +127,6 @@ export function FreteForm({
         ← Menu principal
       </button>
 
-      <div className="frete-header">
-        <div className="frete-badge">🚚 Solicitação de Frete</div>
-        <h2>
-          Cotar <em>Frete</em>
-        </h2>
-        <p>
-          Preencha os dados abaixo para criar um card na lista{' '}
-          <strong>SOLICITAÇÃO DE FRETE</strong> com todas as informações da cotação.
-        </p>
-      </div>
-
       <div className="form-body">
         {/* NOME / TITULO */}
         <div className={`field ${errors.nome ? 'invalid' : ''}`} id="ff-nome">

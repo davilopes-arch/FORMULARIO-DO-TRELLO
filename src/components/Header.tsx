@@ -8,7 +8,7 @@ export function Header({ userEmail, onLogout }: HeaderProps) {
     <header className="hdr text-center">
       <div className="flex flex-col items-center">
         <div className="hdr-badge">
-          Trello · CADASTRO / DEMANDAS CX
+          <span className="hdr-badge-solar">☀️ SOU ENERGY</span>
         </div>
 
         {userEmail && (

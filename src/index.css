@@ -18,6 +18,18 @@
   --yellow-bg: #fef8e8;
   --blue: #1a3f6b;
   --blue-bg: #eef4fc;
+
+  /* SOU ENERGY SOLAR IDENTITY */
+  --solar: #e85d04;
+  --solar-hover: #d04f00;
+  --solar-amber: #f59e0b;
+  --solar-gold: #ffb703;
+  --solar-bg: #fff9f0;
+  --solar-bg-hover: #fff1e0;
+  --solar-bd: #fed7aa;
+  --solar-bd-active: #ea580c;
+  --solar-dark: #7c2d12;
+  --solar-shadow: rgba(232, 93, 4, 0.25);
 }
 
 * {
@@ -60,21 +72,26 @@ body::before {
 .hdr-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-family: 'Archivo Mono', monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.14em;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink3);
-  border: 1px solid var(--border2);
-  padding: 4px 12px;
-  border-radius: 3px;
+  color: var(--ink);
+  background: var(--solar-bg);
+  border: 1px solid var(--solar-bd);
+  padding: 5px 14px;
+  border-radius: 999px;
   margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(232, 93, 4, 0.08);
 }
-.hdr-badge::before {
-  content: '●';
-  color: var(--green);
-  font-size: 0.5rem;
+.hdr-badge-solar {
+  color: var(--solar);
+  font-weight: 700;
+}
+.hdr-badge-sep {
+  color: var(--solar-bd-active);
+  opacity: 0.7;
 }
 .hdr h1 {
   font-size: 2.6rem;
@@ -87,7 +104,10 @@ body::before {
 }
 .hdr h1 em {
   font-style: normal;
-  color: #ff5500;
+  color: var(--solar);
+  background: linear-gradient(135deg, #e85d04 0%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .hdr p {
   font-size: 0.88rem;
@@ -129,10 +149,11 @@ body::before {
   outline: none;
   background: var(--bg);
   color: var(--ink);
-  transition: border 0.18s;
+  transition: all 0.18s;
 }
 .login-input:focus {
-  border-color: var(--ink);
+  border-color: var(--solar);
+  box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.12);
 }
 .login-input.err {
   border-color: var(--red);
@@ -147,20 +168,21 @@ body::before {
   margin-top: 16px;
   width: 100%;
   font-family: 'Archivo', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 800;
   padding: 13px;
-  background: var(--ink);
-  color: var(--surface);
-  border: 2px solid var(--ink);
-  border-radius: 5px;
+  background: var(--solar);
+  color: #ffffff;
+  border: 2px solid #b74100;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.18s;
-  box-shadow: 3px 3px 0 var(--border2);
+  box-shadow: 3px 3px 0 #b74100;
 }
 .btn-login:hover {
+  background: var(--solar-hover);
   transform: translate(-2px, -2px);
-  box-shadow: 5px 5px 0 var(--border2);
+  box-shadow: 5px 5px 0 #b74100;
 }
 
 /* BADGE USUÁRIO */
@@ -243,7 +265,7 @@ body::before {
   border-top: 1px solid var(--border);
 }
 .field:focus-within {
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--solar);
 }
 .field-head {
   display: flex;
@@ -316,8 +338,8 @@ body::before {
   user-select: none;
 }
 .eq-box:hover {
-  border-color: var(--border2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-color: var(--solar-bd);
+  box-shadow: 0 2px 8px rgba(232, 93, 4, 0.1);
   transform: translateY(-1px);
 }
 .eq-box .eq-ico {
@@ -332,12 +354,13 @@ body::before {
 }
 .eq-box.sel {
   border-width: 2px;
-  border-color: var(--ink);
-  background: var(--surface2);
-  box-shadow: 3px 3px 0 var(--ink);
+  border-color: var(--solar);
+  background: var(--solar-bg);
+  box-shadow: 3px 3px 0 var(--solar);
 }
 .eq-box.sel .eq-name {
-  color: var(--ink);
+  color: var(--solar-dark);
+  font-weight: 700;
 }
 
 /* RCA DISPLAY */
@@ -353,7 +376,7 @@ body::before {
   transition: all 0.18s;
 }
 .rca-display:hover {
-  border-color: var(--ink);
+  border-color: var(--solar-amber);
 }
 .rca-display-name {
   font-size: 0.95rem;
@@ -394,14 +417,15 @@ body::before {
   background: var(--surface);
 }
 .toggle-opt:hover {
-  border-color: var(--ink);
-  color: var(--ink);
+  border-color: var(--solar);
+  color: var(--solar-dark);
 }
 .toggle-opt.sel {
-  border-color: var(--ink);
+  border-color: var(--solar);
   border-width: 2px;
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--solar);
+  color: #ffffff;
+  box-shadow: 2px 2px 0 #b74100;
 }
 .toggle-opt .tog-icon {
   font-size: 1.4rem;
@@ -431,8 +455,8 @@ body::before {
   user-select: none;
 }
 .et-btn:hover {
-  border-color: var(--ink);
-  color: var(--ink);
+  border-color: var(--solar);
+  color: var(--solar-dark);
 }
 .et-btn.sel {
   border-width: 2px;
@@ -470,11 +494,13 @@ body::before {
 .preview-wrap {
   background: var(--surface);
   border: 1.5px solid var(--border2);
+  border-top: 3px solid var(--solar);
   border-radius: 8px;
   padding: 20px;
   margin-top: 32px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 4px 16px rgba(232, 93, 4, 0.06);
 }
 .preview-header-label {
   position: absolute;
@@ -559,32 +585,37 @@ body::before {
 }
 .btn-submit {
   font-family: 'Archivo', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.92rem;
+  font-weight: 800;
   letter-spacing: 0.02em;
   padding: 14px 32px;
-  background: var(--ink);
-  color: var(--surface);
-  border: 2px solid var(--ink);
-  border-radius: 5px;
+  background: var(--solar);
+  color: #ffffff;
+  border: 2px solid #b74100;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.18s;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 3px 3px 0 var(--border2);
+  box-shadow: 3px 3px 0 #b74100;
 }
 .btn-submit:hover:not(:disabled) {
+  background: var(--solar-hover);
   transform: translate(-2px, -2px);
-  box-shadow: 5px 5px 0 var(--border2);
+  box-shadow: 5px 5px 0 #b74100;
 }
 .btn-submit:active:not(:disabled) {
   transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--border2);
+  box-shadow: 1px 1px 0 #b74100;
 }
 .btn-submit:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  background: var(--border2);
+  border-color: var(--border2);
+  box-shadow: none;
+  color: var(--ink3);
 }
 .btn-reset {
   font-family: 'Archivo Mono', monospace;
@@ -763,13 +794,14 @@ body::before {
   box-shadow: 6px 6px 0 #9b6dff44;
 }
 .menu-btn-frete {
-  background: var(--yellow-bg);
-  border-color: #e8c840;
-  color: var(--yellow);
-  box-shadow: 4px 4px 0 #e8c84044;
+  background: var(--solar-bg);
+  border-color: var(--solar-bd);
+  color: var(--solar-dark);
+  box-shadow: 4px 4px 0 var(--solar-bd);
 }
 .menu-btn-frete:hover {
-  box-shadow: 6px 6px 0 #e8c84044;
+  border-color: var(--solar);
+  box-shadow: 6px 6px 0 rgba(232, 93, 4, 0.25);
 }
 .menu-btn-cadastro {
   background: var(--blue-bg);
@@ -792,10 +824,9 @@ body::before {
   background: var(--surface);
   position: relative;
 }
-.anexo-area:hover,
-.anexo-area.drag {
-  border-color: var(--ink);
-  background: var(--surface2);
+.anexo-area:hover {
+  border-color: var(--solar);
+  background: var(--solar-bg);
 }
 .anexo-area.drag {
   border-color: var(--green);
@@ -890,8 +921,9 @@ body::before {
   margin-bottom: 28px;
 }
 .btn-back-menu:hover {
-  border-color: var(--ink);
-  color: var(--ink);
+  border-color: var(--solar);
+  color: var(--solar-dark);
+  background: var(--solar-bg);
 }
 
 /* MODAL STYLES */
@@ -957,7 +989,8 @@ body::before {
   transition: border 0.18s;
 }
 .modal-search:focus {
-  border-color: var(--ink);
+  border-color: var(--solar);
+  box-shadow: 0 0 0 2px rgba(232, 93, 4, 0.12);
 }
 .modal-body {
   overflow-y: auto;
@@ -1016,16 +1049,17 @@ body::before {
   text-align: left;
 }
 .rca-name-btn:hover {
-  border-color: var(--ink);
-  color: var(--ink);
-  background: var(--surface2);
+  border-color: var(--solar);
+  color: var(--solar-dark);
+  background: var(--solar-bg);
 }
 .rca-name-btn.active {
-  border-color: var(--ink);
+  border-color: var(--solar);
   border-width: 2px;
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--solar);
+  color: #ffffff;
   font-weight: 700;
+  box-shadow: 2px 2px 0 #b74100;
 }
 .rca-name-edit {
   display: flex;
@@ -1108,17 +1142,18 @@ body::before {
   font-size: 0.82rem;
   font-weight: 700;
   padding: 9px 22px;
-  background: var(--ink);
-  color: var(--surface);
-  border: none;
+  background: var(--solar);
+  color: #ffffff;
+  border: 1.5px solid #b74100;
   border-radius: 5px;
   cursor: pointer;
   transition: all 0.15s;
-  box-shadow: 2px 2px 0 var(--border2);
+  box-shadow: 2px 2px 0 #b74100;
 }
 .btn-confirm-rca:hover {
+  background: var(--solar-hover);
   transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--border2);
+  box-shadow: 3px 3px 0 #b74100;
 }
 .btn-cancel-rca {
   font-family: 'Archivo Mono', monospace;
