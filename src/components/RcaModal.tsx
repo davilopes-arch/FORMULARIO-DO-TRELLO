@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { RCAInfo, TeamName } from '../types';
-import { EQ_EMOJI } from '../data/constants';
+import { RCAInfo, TeamInfo, TeamName } from '../types';
+import { EQ_EMOJI, TEAMS } from '../data/constants';
 
 interface RcaModalProps {
   isOpen: boolean;
@@ -10,6 +10,8 @@ interface RcaModalProps {
   selectedRCA: RCAInfo | null;
   filteredTeam?: TeamName | null;
   isAdmin: boolean;
+  teams?: TeamInfo[];
+  onOpenEquipeModal?: () => void;
   onAddRCA: (team: TeamName, name: string) => Promise<void>;
   onRenameRCA: (team: TeamName, oldName: string, newName: string) => Promise<void>;
   onRemoveRCA: (team: TeamName, name: string) => Promise<void>;
@@ -24,6 +26,8 @@ export function RcaModal({
   selectedRCA,
   filteredTeam,
   isAdmin,
+  teams = TEAMS,
+  onOpenEquipeModal,
   onAddRCA,
   onRenameRCA,
   onRemoveRCA,
@@ -33,13 +37,18 @@ export function RcaModal({
   const [editMode, setEditMode] = useState(false);
   const [tempSelection, setTempSelection] = useState<RCAInfo | null>(selectedRCA);
 
-  // Filtered teams list
+  // Filtered teams list in order
   const activeTeams = useMemo(() => {
     if (filteredTeam && rcasByTeam[filteredTeam]) {
       return [filteredTeam];
     }
-    return Object.keys(rcasByTeam) as TeamName[];
-  }, [filteredTeam, rcasByTeam]);
+    const set = new Set<string>();
+    if (teams && teams.length > 0) {
+      teams.forEach((t) => set.add(t.nome));
+    }
+    Object.keys(rcasByTeam).forEach((k) => set.add(k));
+    return Array.from(set);
+  }, [filteredTeam, rcasByTeam, teams]);
 
   if (!isOpen) return null;
 
@@ -105,15 +114,30 @@ export function RcaModal({
         <div className="modal-head">
           <div className="modal-head-row">
             <h3>{titlePrefix}</h3>
-            {isAdmin && (
-              <button
-                type="button"
-                className={`rca-edit-btn ${editMode ? 'active' : ''}`}
-                onClick={() => setEditMode(!editMode)}
-              >
-                ✎ Editar
-              </button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {isAdmin && onOpenEquipeModal && (
+                <button
+                  type="button"
+                  className="rca-edit-btn"
+                  onClick={() => {
+                    onClose();
+                    onOpenEquipeModal();
+                  }}
+                  title="Gerenciar nomes e ícones das equipes"
+                >
+                  ⚙️ Equipes
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={`rca-edit-btn ${editMode ? 'active' : ''}`}
+                  onClick={() => setEditMode(!editMode)}
+                >
+                  ✎ Editar
+                </button>
+              )}
+            </div>
           </div>
 
           <input
@@ -138,7 +162,7 @@ export function RcaModal({
             return (
               <div className="rca-eq-group" key={team}>
                 <div className="rca-eq-title">
-                  <span>{EQ_EMOJI[team] || '●'}</span>
+                  <span>{teams.find((t) => t.nome === team)?.emoji || EQ_EMOJI[team] || '●'}</span>
                   <span>{team}</span>
                   {isAdmin && (
                     <button

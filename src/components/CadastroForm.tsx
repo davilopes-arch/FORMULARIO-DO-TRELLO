@@ -16,6 +16,8 @@ interface CadastroFormProps {
   isSubmitting: boolean;
   statusText?: string;
   rcasByTeam: Record<TeamName, string[]>;
+  teams?: TeamInfo[];
+  onOpenEquipeModal?: () => void;
   isAdmin: boolean;
   onAddRCA: (team: TeamName, name: string) => Promise<void>;
   onRenameRCA: (team: TeamName, oldName: string, newName: string) => Promise<void>;
@@ -40,6 +42,8 @@ export function CadastroForm({
   isSubmitting,
   statusText,
   rcasByTeam,
+  teams = TEAMS,
+  onOpenEquipeModal,
   isAdmin,
   onAddRCA,
   onRenameRCA,
@@ -69,7 +73,7 @@ export function CadastroForm({
   };
 
   const handleSelectRCA = (rca: RCAInfo) => {
-    const teamObj = TEAMS.find((t) => t.nome === rca.eq) || null;
+    const teamObj = teams.find((t) => t.nome === rca.eq) || null;
     setFormData((prev) => ({
       ...prev,
       rca,
@@ -184,13 +188,23 @@ export function CadastroForm({
             <div className="field-label">
               Equipe <span className="req">*</span>
             </div>
+            {onOpenEquipeModal && (
+              <button
+                type="button"
+                className="text-xs font-mono font-bold text-[var(--ink2)] hover:text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border2)] px-2.5 py-1 rounded transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                onClick={onOpenEquipeModal}
+                title="Editar nome e ícone das equipes"
+              >
+                <span>⚙️</span> Editar Equipes
+              </button>
+            )}
           </div>
           <div className="eq-row">
-            {TEAMS.map((team) => (
+            {teams.map((team) => (
               <div
-                key={team.nome}
+                key={team.id || team.nome}
                 className={`eq-box ${formData.equipe?.nome === team.nome ? 'sel' : ''}`}
-                id={`ceq-${team.nome.toLowerCase()}`}
+                id={`ceq-${team.nome.toLowerCase().replace(/\s+/g, '-')}`}
                 onClick={() => handleSelectTeam(team)}
               >
                 <span className="eq-ico">{team.emoji}</span>
@@ -220,7 +234,7 @@ export function CadastroForm({
                 <>
                   <div className="rca-display-name">{formData.rca.nome}</div>
                   <div className="rca-display-eq">
-                    {TEAMS.find((t) => t.nome === formData.rca?.eq)?.emoji} {formData.rca.eq}
+                    {teams.find((t) => t.nome === formData.rca?.eq)?.emoji} {formData.rca.eq}
                   </div>
                 </>
               ) : (
@@ -497,6 +511,8 @@ export function CadastroForm({
         selectedRCA={formData.rca}
         filteredTeam={formData.equipe?.nome}
         isAdmin={isAdmin}
+        teams={teams}
+        onOpenEquipeModal={onOpenEquipeModal}
         onAddRCA={onAddRCA}
         onRenameRCA={onRenameRCA}
         onRemoveRCA={onRemoveRCA}

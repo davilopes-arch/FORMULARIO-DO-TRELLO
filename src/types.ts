@@ -1,15 +1,16 @@
 export type FormType = 'demandas' | 'frete' | 'cadastro';
 
-export type TeamName = 'Farol' | 'Cactus' | 'Girassol' | 'Raio' | 'Clareou';
+export type TeamName = string;
 
 export interface TeamInfo {
-  nome: TeamName;
+  id?: string;
+  nome: string;
   emoji: string;
 }
 
 export interface RCAInfo {
   nome: string;
-  eq: TeamName;
+  eq: string;
 }
 
 export interface TrelloLabel {

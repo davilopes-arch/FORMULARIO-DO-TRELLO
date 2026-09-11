@@ -5,10 +5,11 @@ import {
   DemandasFormData,
   FreteFormData,
   CadastroFormData,
+  TeamInfo,
   TeamName,
   CardSummaryData,
 } from './types';
-import { ADMIN_EMAIL, INITIAL_RCAS, isTeamLabel } from './data/constants';
+import { ADMIN_EMAIL, INITIAL_RCAS, DEFAULT_TEAMS, isTeamLabel } from './data/constants';
 import { FALLBACK_BOARD_DATA } from './data/defaultBoardData';
 import {
   fetchBoardData,
@@ -20,6 +21,11 @@ import {
   addRCAApi,
   renameRCAApi,
   removeRCAApi,
+  fetchTeams,
+  addTeamApi,
+  updateTeamApi,
+  deleteTeamApi,
+  resetTeamsApi,
 } from './services/api';
 import { Header } from './components/Header';
 import { LoginView } from './components/LoginView';
@@ -28,6 +34,7 @@ import { DemandasForm } from './components/DemandasForm';
 import { FreteForm } from './components/FreteForm';
 import { CadastroForm } from './components/CadastroForm';
 import { SuccessView } from './components/SuccessView';
+import { EquipeModal } from './components/EquipeModal';
 
 type ViewState =
   | 'loading'
@@ -44,6 +51,17 @@ export default function App() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [boardData, setBoardData] = useState<BoardDataResponse | null>(null);
   const [rcasByTeam, setRcasByTeam] = useState<Record<TeamName, string[]>>(INITIAL_RCAS);
+  const [teams, setTeams] = useState<TeamInfo[]>(() => {
+    try {
+      const saved = localStorage.getItem('cx_teams_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_TEAMS;
+  });
+  const [isEquipeModalOpen, setIsEquipeModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -68,8 +86,8 @@ export default function App() {
     setErrorMessage('');
 
     try {
-      // Fetch both board data and RCAs from backend with bulletproof fallbacks
-      const [boardResp, rcaResp] = await Promise.all([
+      // Fetch board data, RCAs and Teams from backend with bulletproof fallbacks
+      const [boardResp, rcaResp, teamsResp] = await Promise.all([
         fetchBoardData().catch((err) => {
           console.warn('Erro ao carregar boardData, usando fallback:', err);
           return FALLBACK_BOARD_DATA;
@@ -77,6 +95,10 @@ export default function App() {
         fetchRCAs().catch((err) => {
           console.warn('Erro ao carregar RCAs, usando fallback:', err);
           return INITIAL_RCAS;
+        }),
+        fetchTeams().catch((err) => {
+          console.warn('Erro ao carregar Equipes, usando fallback:', err);
+          return DEFAULT_TEAMS;
         }),
       ]);
 
@@ -86,6 +108,12 @@ export default function App() {
       } else {
         setRcasByTeam(INITIAL_RCAS);
       }
+
+      if (Array.isArray(teamsResp) && teamsResp.length > 0) {
+        setTeams(teamsResp);
+        localStorage.setItem('cx_teams_data', JSON.stringify(teamsResp));
+      }
+
       setView('menu');
     } catch (err: any) {
       console.warn('Fallback ativado no loadData:', err);
@@ -146,6 +174,31 @@ export default function App() {
     setRcasByTeam(updated);
   };
 
+  // Equipe Admin Handlers
+  const handleUpdateTeam = async (id: string, updates: { nome?: string; emoji?: string }) => {
+    const updated = await updateTeamApi(id, updates);
+    setTeams(updated);
+    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+  };
+
+  const handleAddTeam = async (nome: string, emoji: string) => {
+    const updated = await addTeamApi(nome, emoji);
+    setTeams(updated);
+    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+  };
+
+  const handleRemoveTeam = async (id: string) => {
+    const updated = await deleteTeamApi(id);
+    setTeams(updated);
+    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+  };
+
+  const handleResetTeams = async () => {
+    const updated = await resetTeamsApi();
+    setTeams(updated);
+    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+  };
+
   // Label Admin Handlers
   const handleAddLabel = async (name: string) => {
     await createBoardLabel(name, 'blue');
@@ -192,7 +245,7 @@ export default function App() {
 
       // Team label if exists on board
       const teamLabel = boardData.labels.find(
-        (l) => isTeamLabel(l.name) && l.name.toUpperCase().includes(eq.toUpperCase())
+        (l) => isTeamLabel(l.name, teams) && l.name.toUpperCase().includes(eq.toUpperCase())
       );
 
       const allLabelIds = Array.from(
@@ -286,7 +339,7 @@ export default function App() {
 
       const freteLabel = boardData.labels.find((l) => norm(l.name).includes('FRETE'));
       const teamLabel = boardData.labels.find(
-        (l) => isTeamLabel(l.name) && norm(l.name).includes(norm(eq))
+        (l) => isTeamLabel(l.name, teams) && norm(l.name).includes(norm(eq))
       );
 
       const labelIds = [teamLabel?.id, freteLabel?.id].filter(Boolean) as string[];
@@ -367,7 +420,7 @@ export default function App() {
 
       const cadLabel = boardData.labels.find((l) => norm(l.name).includes('CADASTRO'));
       const teamLabel = boardData.labels.find(
-        (l) => isTeamLabel(l.name) && norm(l.name).includes(norm(eq))
+        (l) => isTeamLabel(l.name, teams) && norm(l.name).includes(norm(eq))
       );
 
       const labelIds = [teamLabel?.id, cadLabel?.id].filter(Boolean) as string[];
@@ -479,7 +532,10 @@ export default function App() {
 
       {/* VIEW: MENU */}
       {view === 'menu' && (
-        <MainMenuView onSelectForm={handleSelectForm} />
+        <MainMenuView
+          onSelectForm={handleSelectForm}
+          onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
+        />
       )}
 
       {/* VIEW: FORM DEMANDAS */}
@@ -491,6 +547,8 @@ export default function App() {
           statusText={statusText}
           labels={boardData.labels}
           rcasByTeam={rcasByTeam}
+          teams={teams}
+          onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
           isAdmin={isAdmin}
           onAddRCA={handleAddRCA}
           onRenameRCA={handleRenameRCA}
@@ -509,6 +567,8 @@ export default function App() {
           isSubmitting={isSubmitting}
           statusText={statusText}
           rcasByTeam={rcasByTeam}
+          teams={teams}
+          onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
           isAdmin={isAdmin}
           onAddRCA={handleAddRCA}
           onRenameRCA={handleRenameRCA}
@@ -524,6 +584,8 @@ export default function App() {
           isSubmitting={isSubmitting}
           statusText={statusText}
           rcasByTeam={rcasByTeam}
+          teams={teams}
+          onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
           isAdmin={isAdmin}
           onAddRCA={handleAddRCA}
           onRenameRCA={handleRenameRCA}
@@ -544,6 +606,19 @@ export default function App() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onBackToMenu={handleBackToMenu}
+        />
+      )}
+
+      {/* MODAL GERENCIAMENTO DE EQUIPES (Exclusivo Administrador) */}
+      {isAdmin && (
+        <EquipeModal
+          isOpen={isEquipeModalOpen}
+          onClose={() => setIsEquipeModalOpen(false)}
+          teams={teams}
+          onUpdateTeam={handleUpdateTeam}
+          onAddTeam={handleAddTeam}
+          onRemoveTeam={handleRemoveTeam}
+          onResetTeams={handleResetTeams}
         />
       )}
     </div>

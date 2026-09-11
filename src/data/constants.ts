@@ -1,14 +1,16 @@
-import { TeamName } from '../types';
+import { TeamInfo, TeamName } from '../types';
 
 export const ADMIN_EMAIL = 'davi.lopes@souenergy.com.br';
 
-export const TEAMS: { nome: TeamName; emoji: string }[] = [
-  { nome: 'Farol', emoji: '🗼' },
-  { nome: 'Cactus', emoji: '🌵' },
-  { nome: 'Girassol', emoji: '🌻' },
-  { nome: 'Raio', emoji: '⚡' },
-  { nome: 'Clareou', emoji: '🌅' },
+export const DEFAULT_TEAMS: TeamInfo[] = [
+  { id: 'farol', nome: 'Farol', emoji: '🗼' },
+  { id: 'cactus', nome: 'Cactus', emoji: '🌵' },
+  { id: 'girassol', nome: 'Girassol', emoji: '🌻' },
+  { id: 'raio', nome: 'Raio', emoji: '⚡' },
+  { id: 'clareou', nome: 'Clareou', emoji: '🌅' },
 ];
+
+export const TEAMS: TeamInfo[] = [...DEFAULT_TEAMS];
 
 export const EQ_EMOJI: Record<string, string> = {
   Farol: '🗼',
@@ -92,8 +94,13 @@ export function getTrelloColor(color?: string): string {
   return TRELLO_COLOR_MAP[base] || '#666666';
 }
 
-export function isTeamLabel(name: string): boolean {
+export function isTeamLabel(name: string, teamsList?: { nome: string }[]): boolean {
+  if (!name) return false;
   const n = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const eqNomes = ['farol', 'cactus', 'girassol', 'raio', 'clareou'];
-  return eqNomes.some((eq) => n.includes(eq));
+  const defaultNomes = ['farol', 'cactus', 'girassol', 'raio', 'clareou'];
+  const customNomes = teamsList
+    ? teamsList.map((t) => t.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    : [];
+  const allNomes = Array.from(new Set([...defaultNomes, ...customNomes]));
+  return allNomes.some((eq) => eq && n.includes(eq));
 }

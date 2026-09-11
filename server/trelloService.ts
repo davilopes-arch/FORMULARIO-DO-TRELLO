@@ -9,9 +9,9 @@ export interface BoardCachedData {
   timestamp: number;
 }
 
-const TRELLO_KEY = process.env.TRELLO_API_KEY || 'c9c79cf6c41d3521bd7a8d79f2dec202';
+const TRELLO_KEY = process.env.TRELLO_API_KEY || process.env.CHAVE_API_DO_TRELLO || 'c9c79cf6c41d3521bd7a8d79f2dec202';
 const TRELLO_TOKEN = process.env.TRELLO_TOKEN || 'ATTA631fc95a87a351811e61eac1864c866dc5dfc5c8b8af5deb3c90848cc7ee9b0727C80483';
-const BOARD_ID = process.env.TRELLO_BOARD_ID || '1ongu3oT';
+const BOARD_ID = process.env.TRELLO_BOARD_ID || process.env.ID_DO_QUADRO_DO_TRELLO || '1ongu3oT';
 const API_BASE = 'https://api.trello.com/1';
 
 let cachedBoardData: BoardCachedData | null = {

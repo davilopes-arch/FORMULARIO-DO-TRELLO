@@ -1,6 +1,7 @@
 import {
   BoardDataResponse,
   CardCreateResult,
+  TeamInfo,
   TeamName,
 } from '../types';
 import { CreateCardPayload } from '../../server/trelloService';
@@ -126,6 +127,71 @@ export async function removeRCAApi(team: TeamName, name: string): Promise<Record
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Erro ao remover consultor' }));
+    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// Teams API
+export async function fetchTeams(): Promise<TeamInfo[]> {
+  const res = await fetch('/api/teams');
+  if (!res.ok) {
+    throw new Error('Falha ao carregar equipes');
+  }
+  return res.json();
+}
+
+export async function addTeamApi(
+  nome: string,
+  emoji: string
+): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
+  const res = await fetch('/api/teams', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome, emoji }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Erro ao criar equipe' }));
+    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function updateTeamApi(
+  id: string,
+  updates: { nome?: string; emoji?: string }
+): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
+  const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Erro ao atualizar equipe' }));
+    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteTeamApi(
+  id: string
+): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
+  const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Erro ao remover equipe' }));
+    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function resetTeamsApi(): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
+  const res = await fetch('/api/teams/reset', {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Erro ao restaurar equipes padrão' }));
     throw new Error(err.error || `Erro HTTP ${res.status}`);
   }
   return res.json();

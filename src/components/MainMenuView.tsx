@@ -2,9 +2,10 @@ import { FormType } from '../types';
 
 interface MainMenuViewProps {
   onSelectForm: (type: FormType) => void;
+  onOpenEquipeModal?: () => void;
 }
 
-export function MainMenuView({ onSelectForm }: MainMenuViewProps) {
+export function MainMenuView({ onSelectForm, onOpenEquipeModal }: MainMenuViewProps) {
   return (
     <div className="py-2">
       <div className="menu-title">O que você deseja fazer?</div>
@@ -56,6 +57,19 @@ export function MainMenuView({ onSelectForm }: MainMenuViewProps) {
           <span className="menu-btn-arrow">→</span>
         </button>
       </div>
+
+      {onOpenEquipeModal && (
+        <div className="pt-4 flex justify-center">
+          <button
+            type="button"
+            className="text-xs font-mono font-semibold text-[var(--ink2)] hover:text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border2)] px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-xs cursor-pointer"
+            onClick={onOpenEquipeModal}
+            title="Gerenciar nomes e ícones das equipes"
+          >
+            <span>⚙️</span> Personalizar Equipes (Ícones e Nomes)
+          </button>
+        </div>
+      )}
     </div>
   );
 }
