@@ -50,56 +50,73 @@ const DEFAULT_RCAS: Record<string, string[]> = {
   ],
 };
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const RCAS_FILE = path.join(DATA_DIR, 'rcas.json');
-const TEAMS_FILE = path.join(DATA_DIR, 'teams.json');
+const DATA_DIR =
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    ? path.join('/tmp', 'data')
+    : path.join(process.cwd(), 'data');
 
 let currentTeams: TeamInfo[] = [...DEFAULT_TEAMS];
 let currentRCAs: Record<string, string[]> = { ...DEFAULT_RCAS };
 
 function loadFromDisk() {
-  try {
-    if (fs.existsSync(TEAMS_FILE)) {
-      const data = fs.readFileSync(TEAMS_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        currentTeams = parsed;
+  const possiblePaths = [
+    path.join(DATA_DIR, 'teams.json'),
+    path.join(process.cwd(), 'data', 'teams.json'),
+    path.join('/tmp', 'data', 'teams.json'),
+  ];
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const data = fs.readFileSync(p, 'utf-8');
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          currentTeams = parsed;
+          break;
+        }
       }
-    }
-  } catch (err) {
-    console.error('Error loading teams from disk:', err);
+    } catch {}
   }
 
-  try {
-    if (fs.existsSync(RCAS_FILE)) {
-      const data = fs.readFileSync(RCAS_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      currentRCAs = { ...DEFAULT_RCAS, ...parsed };
-    }
-  } catch (err) {
-    console.error('Error loading RCAs from disk:', err);
+  const possibleRcaPaths = [
+    path.join(DATA_DIR, 'rcas.json'),
+    path.join(process.cwd(), 'data', 'rcas.json'),
+    path.join('/tmp', 'data', 'rcas.json'),
+  ];
+  for (const p of possibleRcaPaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const data = fs.readFileSync(p, 'utf-8');
+        const parsed = JSON.parse(data);
+        currentRCAs = { ...DEFAULT_RCAS, ...parsed };
+        break;
+      }
+    } catch {}
   }
 }
 
 function saveRcasToDisk() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(RCAS_FILE, JSON.stringify(currentRCAs, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error saving RCAs to disk:', err);
+  const dirs = [DATA_DIR, path.join('/tmp', 'data')];
+  for (const dir of dirs) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(dir, 'rcas.json'), JSON.stringify(currentRCAs, null, 2), 'utf-8');
+      break;
+    } catch {}
   }
 }
 
 function saveTeamsToDisk() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(TEAMS_FILE, JSON.stringify(currentTeams, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error saving Teams to disk:', err);
+  const dirs = [DATA_DIR, path.join('/tmp', 'data')];
+  for (const dir of dirs) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(dir, 'teams.json'), JSON.stringify(currentTeams, null, 2), 'utf-8');
+      break;
+    } catch {}
   }
 }
 

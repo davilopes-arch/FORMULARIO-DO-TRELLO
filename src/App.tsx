@@ -176,27 +176,120 @@ export default function App() {
 
   // Equipe Admin Handlers
   const handleUpdateTeam = async (id: string, updates: { nome?: string; emoji?: string }) => {
-    const updated = await updateTeamApi(id, updates);
-    setTeams(updated);
-    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+    // 1. Immediately apply update locally
+    const currentList = [...teams];
+    const idx = currentList.findIndex(
+      (t) => t.id === id || t.nome.toLowerCase() === id.toLowerCase()
+    );
+
+    let nextList = currentList;
+    let oldName = '';
+    const newName = updates.nome?.trim();
+
+    if (idx !== -1) {
+      oldName = currentList[idx].nome;
+      const updatedItem: TeamInfo = {
+        ...currentList[idx],
+        nome: newName || currentList[idx].nome,
+        emoji: updates.emoji?.trim() || currentList[idx].emoji,
+      };
+      nextList = [
+        ...currentList.slice(0, idx),
+        updatedItem,
+        ...currentList.slice(idx + 1),
+      ];
+    }
+
+    setTeams(nextList);
+    localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
+
+    if (oldName && newName && oldName !== newName && rcasByTeam[oldName]) {
+      const nextRcas = { ...rcasByTeam };
+      nextRcas[newName] = nextRcas[oldName];
+      delete nextRcas[oldName];
+      setRcasByTeam(nextRcas);
+    }
+
+    // 2. Synchronize with backend API
+    try {
+      const resp = await updateTeamApi(id, updates);
+      if (resp && Array.isArray(resp.teams)) {
+        setTeams(resp.teams);
+        localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+      }
+      if (resp && resp.rcas) {
+        setRcasByTeam(resp.rcas);
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, changes kept locally:', err);
+    }
   };
 
   const handleAddTeam = async (nome: string, emoji: string) => {
-    const updated = await addTeamApi(nome, emoji);
-    setTeams(updated);
-    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+    const cleanNome = nome.trim();
+    const cleanEmoji = emoji.trim() || '⚡';
+    const newId = cleanNome.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+    const newTeam: TeamInfo = { id: newId, nome: cleanNome, emoji: cleanEmoji };
+    const nextList = [...teams, newTeam];
+
+    setTeams(nextList);
+    localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
+
+    if (!rcasByTeam[cleanNome]) {
+      setRcasByTeam((prev) => ({ ...prev, [cleanNome]: [] }));
+    }
+
+    try {
+      const resp = await addTeamApi(cleanNome, cleanEmoji);
+      if (resp && Array.isArray(resp.teams)) {
+        setTeams(resp.teams);
+        localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+      }
+      if (resp && resp.rcas) {
+        setRcasByTeam(resp.rcas);
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, changes kept locally:', err);
+    }
   };
 
   const handleRemoveTeam = async (id: string) => {
-    const updated = await deleteTeamApi(id);
-    setTeams(updated);
-    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+    const nextList = teams.filter(
+      (t) => t.id !== id && t.nome.toLowerCase() !== id.toLowerCase()
+    );
+    setTeams(nextList);
+    localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
+
+    try {
+      const resp = await deleteTeamApi(id);
+      if (resp && Array.isArray(resp.teams)) {
+        setTeams(resp.teams);
+        localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+      }
+      if (resp && resp.rcas) {
+        setRcasByTeam(resp.rcas);
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, changes kept locally:', err);
+    }
   };
 
   const handleResetTeams = async () => {
-    const updated = await resetTeamsApi();
-    setTeams(updated);
-    localStorage.setItem('cx_teams_data', JSON.stringify(updated));
+    setTeams(DEFAULT_TEAMS);
+    localStorage.setItem('cx_teams_data', JSON.stringify(DEFAULT_TEAMS));
+
+    try {
+      const resp = await resetTeamsApi();
+      if (resp && Array.isArray(resp.teams)) {
+        setTeams(resp.teams);
+        localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+      }
+      if (resp && resp.rcas) {
+        setRcasByTeam(resp.rcas);
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, reset kept locally:', err);
+    }
   };
 
   // Label Admin Handlers

@@ -153,20 +153,30 @@ apiRouter.post('/teams', (req, res) => {
   res.status(201).json(result);
 });
 
-apiRouter.put('/teams/:id', (req, res) => {
-  const { id } = req.params;
+const handleTeamUpdate = (req: express.Request, res: express.Response) => {
+  const id = req.params.id || req.body.id;
   const { nome, emoji } = req.body;
+  if (!id) return res.status(400).json({ error: 'ID ou nome da equipe é obrigatório' });
   const result = updateTeam(id, { nome, emoji });
   if (!result.success) return res.status(400).json(result);
   res.json(result);
-});
+};
 
-apiRouter.delete('/teams/:id', (req, res) => {
-  const { id } = req.params;
+apiRouter.put('/teams/:id', handleTeamUpdate);
+apiRouter.put('/teams', handleTeamUpdate);
+apiRouter.post('/teams/update', handleTeamUpdate);
+
+const handleTeamDelete = (req: express.Request, res: express.Response) => {
+  const id = req.params.id || req.body.id;
+  if (!id) return res.status(400).json({ error: 'ID da equipe é obrigatório' });
   const result = removeTeam(id);
   if (!result.success) return res.status(400).json(result);
   res.json(result);
-});
+};
+
+apiRouter.delete('/teams/:id', handleTeamDelete);
+apiRouter.delete('/teams', handleTeamDelete);
+apiRouter.post('/teams/delete', handleTeamDelete);
 
 apiRouter.post('/teams/reset', (req, res) => {
   const result = resetTeams();

@@ -151,7 +151,7 @@ export async function addTeamApi(
     body: JSON.stringify({ nome, emoji }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao criar equipe' }));
+    const err = await res.json().catch(() => ({ error: 'Erro ao criar equipe no servidor' }));
     throw new Error(err.error || `Erro HTTP ${res.status}`);
   }
   return res.json();
@@ -161,29 +161,55 @@ export async function updateTeamApi(
   id: string,
   updates: { nome?: string; emoji?: string }
 ): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
-  const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
-    method: 'PUT',
+  // Try PUT /api/teams/:id first
+  try {
+    const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...updates, id }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  // Fallback to POST /api/teams/update
+  const resFallback = await fetch('/api/teams/update', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
+    body: JSON.stringify({ id, ...updates }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao atualizar equipe' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  if (!resFallback.ok) {
+    const err = await resFallback.json().catch(() => ({ error: 'Erro ao atualizar equipe no servidor' }));
+    throw new Error(err.error || `Erro HTTP ${resFallback.status}`);
   }
-  return res.json();
+  return resFallback.json();
 }
 
 export async function deleteTeamApi(
   id: string
 ): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
-  const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
+  try {
+    const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {}
+
+  const resFallback = await fetch('/api/teams/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao remover equipe' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  if (!resFallback.ok) {
+    const err = await resFallback.json().catch(() => ({ error: 'Erro ao remover equipe no servidor' }));
+    throw new Error(err.error || `Erro HTTP ${resFallback.status}`);
   }
-  return res.json();
+  return resFallback.json();
 }
 
 export async function resetTeamsApi(): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
@@ -191,7 +217,7 @@ export async function resetTeamsApi(): Promise<{ teams: TeamInfo[]; rcas: Record
     method: 'POST',
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao restaurar equipes padrão' }));
+    const err = await res.json().catch(() => ({ error: 'Erro ao restaurar equipes padrão no servidor' }));
     throw new Error(err.error || `Erro HTTP ${res.status}`);
   }
   return res.json();
