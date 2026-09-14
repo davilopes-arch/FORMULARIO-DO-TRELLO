@@ -250,6 +250,19 @@ export async function resetTeams(): Promise<{ success: boolean; teams: TeamInfo[
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 
+function resolveTeamKey(team: string): string {
+  const clean = team.trim();
+  const existingKey = Object.keys(currentRCAs).find((k) => k.toLowerCase() === clean.toLowerCase());
+  if (existingKey) return existingKey;
+  const foundTeam = currentTeams.find((t) => t.id.toLowerCase() === clean.toLowerCase() || t.nome.toLowerCase() === clean.toLowerCase());
+  if (foundTeam) {
+    if (!currentRCAs[foundTeam.nome]) currentRCAs[foundTeam.nome] = [];
+    return foundTeam.nome;
+  }
+  if (!currentRCAs[clean]) currentRCAs[clean] = [];
+  return clean;
+}
+
 // --- RCA MANAGEMENT ---
 
 export function getRCAs(): Record<string, string[]> {
@@ -259,36 +272,42 @@ export function getRCAs(): Record<string, string[]> {
 export async function addRCA(team: string, name: string): Promise<{ success: boolean; error?: string }> {
   const cleanName = name.trim().toUpperCase();
   if (!cleanName) return { success: false, error: 'Nome inválido' };
-  if (!currentRCAs[team]) currentRCAs[team] = [];
-  if (currentRCAs[team].includes(cleanName)) {
-    return { success: false, error: 'Consultor já cadastrado nessa equipe' };
+  const key = resolveTeamKey(team);
+  if (!currentRCAs[key]) currentRCAs[key] = [];
+  const exists = currentRCAs[key].some((n) => n.trim().toUpperCase() === cleanName);
+  if (!exists) {
+    currentRCAs[key].push(cleanName);
+    currentRCAs[key].sort();
+    await persistAll();
   }
-  currentRCAs[team].push(cleanName);
-  currentRCAs[team].sort();
-  await persistAll();
   return { success: true };
 }
 
 export async function renameRCA(team: string, oldName: string, newName: string): Promise<{ success: boolean; error?: string }> {
-  const cleanNewName = newName.trim().toUpperCase();
-  if (!cleanNewName) return { success: false, error: 'Novo nome inválido' };
-  const list = currentRCAs[team] || [];
-  const idx = list.indexOf(oldName);
-  if (idx === -1) return { success: false, error: 'Consultor não encontrado' };
-
-  list[idx] = cleanNewName;
-  list.sort();
+  const cleanOld = oldName.trim().toUpperCase();
+  const cleanNew = newName.trim().toUpperCase();
+  if (!cleanNew) return { success: false, error: 'Novo nome inválido' };
+  const key = resolveTeamKey(team);
+  const list = currentRCAs[key] || [];
+  const idx = list.findIndex((n) => n.trim().toUpperCase() === cleanOld);
+  if (idx !== -1) {
+    list[idx] = cleanNew;
+    list.sort();
+  } else {
+    if (!list.includes(cleanNew)) {
+      list.push(cleanNew);
+      list.sort();
+    }
+  }
   await persistAll();
   return { success: true };
 }
 
 export async function removeRCA(team: string, name: string): Promise<{ success: boolean; error?: string }> {
-  const list = currentRCAs[team] || [];
-  const beforeLen = list.length;
-  currentRCAs[team] = list.filter((n) => n !== name);
-  if (currentRCAs[team].length === beforeLen) {
-    return { success: false, error: 'Consultor não encontrado' };
-  }
+  const key = resolveTeamKey(team);
+  const cleanTarget = name.trim().toUpperCase();
+  const list = currentRCAs[key] || [];
+  currentRCAs[key] = list.filter((n) => n.trim().toUpperCase() !== cleanTarget);
   await persistAll();
   return { success: true };
 }

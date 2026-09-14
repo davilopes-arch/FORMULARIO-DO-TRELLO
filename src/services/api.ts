@@ -258,83 +258,322 @@ export async function deleteBoardLabel(id: string): Promise<{ success: boolean }
   }
 }
 
-export async function fetchRCAs(): Promise<Record<TeamName, string[]>> {
-  const res = await fetch('/api/rcas');
-  if (!res.ok) {
-    throw new Error('Falha ao carregar lista de consultores');
+// --- CONFIG CARD CLOUD SYNC (TRELLO PERMANENT STORAGE) ---
+const CONFIG_CARD_ID = '6aa8433d68d41358727d4b45';
+
+async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]; rcas?: Record<string, string[]> } | null> {
+  try {
+    const res = await fetch(
+      `https://api.trello.com/1/cards/${CONFIG_CARD_ID}?fields=desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+    );
+    if (res.ok) {
+      const card = await res.json();
+      if (card?.desc) {
+        return JSON.parse(card.desc);
+      }
+    }
+  } catch (err) {
+    console.warn('Falha ao ler config card diretamente do Trello:', err);
   }
-  return res.json();
+  return null;
+}
+
+async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?: Record<string, string[]> }): Promise<boolean> {
+  try {
+    // Merge with existing local data so we never overwrite other fields
+    let teamsData = data.teams;
+    if (!teamsData) {
+      try {
+        const localTeams = localStorage.getItem('cx_teams_data');
+        if (localTeams) teamsData = JSON.parse(localTeams);
+      } catch {}
+    }
+
+    let rcasData = data.rcas;
+    if (!rcasData) {
+      try {
+        const localRcas = localStorage.getItem('cx_rcas_data');
+        if (localRcas) rcasData = JSON.parse(localRcas);
+      } catch {}
+    }
+
+    const payload = {
+      teams: teamsData,
+      rcas: rcasData,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    const res = await fetch(
+      `https://api.trello.com/1/cards/${CONFIG_CARD_ID}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desc: JSON.stringify(payload, null, 2) }),
+      }
+    );
+    return res.ok;
+  } catch (err) {
+    console.warn('Falha ao salvar config card diretamente no Trello:', err);
+    return false;
+  }
+}
+
+export async function fetchRCAs(): Promise<Record<TeamName, string[]>> {
+  // 1. Tenta pelo backend proxy
+  try {
+    const res = await fetch('/api/rcas');
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        return data;
+      }
+    }
+  } catch {}
+
+  // 2. Tenta diretamente no card do Trello
+  const cloud = await fetchPortalConfigFromTrelloDirect();
+  if (cloud?.rcas && Object.keys(cloud.rcas).length > 0) {
+    return cloud.rcas;
+  }
+
+  // 3. Fallback do localStorage
+  try {
+    const raw = localStorage.getItem('cx_rcas_data');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch {}
+
+  throw new Error('Falha ao carregar lista de consultores');
 }
 
 export async function addRCAApi(team: TeamName, name: string): Promise<Record<TeamName, string[]>> {
-  const res = await fetch('/api/rcas', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ team, name }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao adicionar consultor' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
+  const cleanName = name.trim().toUpperCase();
+
+  // Obter estado atual do localStorage
+  let current: Record<string, string[]> = {};
+  try {
+    const raw = localStorage.getItem('cx_rcas_data');
+    if (raw) current = JSON.parse(raw);
+  } catch {}
+
+  const key = Object.keys(current).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team.trim();
+  const list = current[key] ? [...current[key]] : [];
+  if (!list.includes(cleanName)) {
+    list.push(cleanName);
+    list.sort();
   }
-  return res.json();
+  current[key] = list;
+  localStorage.setItem('cx_rcas_data', JSON.stringify(current));
+
+  // 1. Tenta POST /api/rcas
+  try {
+    const res = await fetch('/api/rcas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, name: cleanName }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      savePortalConfigToTrelloDirect({ rcas: data }).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 2. Tenta POST /api/rcas/add
+  try {
+    const resAdd = await fetch('/api/rcas/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, name: cleanName }),
+    });
+    if (resAdd.ok) {
+      const data = await resAdd.json();
+      savePortalConfigToTrelloDirect({ rcas: data }).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 3. Sincroniza diretamente com o Trello Cloud
+  await savePortalConfigToTrelloDirect({ rcas: current });
+  return current;
 }
 
 export async function renameRCAApi(team: TeamName, oldName: string, newName: string): Promise<Record<TeamName, string[]>> {
-  const res = await fetch('/api/rcas', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ team, oldName, newName }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao renomear consultor' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
-  }
-  return res.json();
+  const cleanOld = oldName.trim().toUpperCase();
+  const cleanNew = newName.trim().toUpperCase();
+
+  let current: Record<string, string[]> = {};
+  try {
+    const raw = localStorage.getItem('cx_rcas_data');
+    if (raw) current = JSON.parse(raw);
+  } catch {}
+
+  const key = Object.keys(current).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team.trim();
+  const list = (current[key] || []).map((n) => (n.trim().toUpperCase() === cleanOld ? cleanNew : n));
+  list.sort();
+  current[key] = list;
+  localStorage.setItem('cx_rcas_data', JSON.stringify(current));
+
+  // 1. Tenta PUT /api/rcas
+  try {
+    const res = await fetch('/api/rcas', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, oldName: cleanOld, newName: cleanNew }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      savePortalConfigToTrelloDirect({ rcas: data }).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 2. Tenta POST /api/rcas/rename
+  try {
+    const resRename = await fetch('/api/rcas/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, oldName: cleanOld, newName: cleanNew }),
+    });
+    if (resRename.ok) {
+      const data = await resRename.json();
+      savePortalConfigToTrelloDirect({ rcas: data }).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 3. Sincroniza diretamente com o Trello Cloud
+  await savePortalConfigToTrelloDirect({ rcas: current });
+  return current;
 }
 
 export async function removeRCAApi(team: TeamName, name: string): Promise<Record<TeamName, string[]>> {
-  const res = await fetch('/api/rcas', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ team, name }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao remover consultor' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
-  }
-  return res.json();
+  const cleanTarget = name.trim().toUpperCase();
+
+  let current: Record<string, string[]> = {};
+  try {
+    const raw = localStorage.getItem('cx_rcas_data');
+    if (raw) current = JSON.parse(raw);
+  } catch {}
+
+  const key = Object.keys(current).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team.trim();
+  const list = (current[key] || []).filter((n) => n.trim().toUpperCase() !== cleanTarget);
+  current[key] = list;
+  localStorage.setItem('cx_rcas_data', JSON.stringify(current));
+
+  // 1. Tenta DELETE /api/rcas
+  try {
+    const res = await fetch('/api/rcas', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, name: cleanTarget }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      savePortalConfigToTrelloDirect({ rcas: data }).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 2. Tenta POST /api/rcas/delete
+  try {
+    const resDelete = await fetch('/api/rcas/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, name: cleanTarget }),
+    });
+    if (resDelete.ok) {
+      const data = await resDelete.json();
+      savePortalConfigToTrelloDirect({ rcas: data }).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 3. Sincroniza diretamente com o Trello Cloud
+  await savePortalConfigToTrelloDirect({ rcas: current });
+  return current;
 }
 
 // Teams API
 export async function fetchTeams(): Promise<TeamInfo[]> {
-  const res = await fetch('/api/teams');
-  if (!res.ok) {
-    throw new Error('Falha ao carregar equipes');
+  // 1. Tenta backend proxy
+  try {
+    const res = await fetch('/api/teams');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch {}
+
+  // 2. Tenta diretamente no card do Trello
+  const cloud = await fetchPortalConfigFromTrelloDirect();
+  if (Array.isArray(cloud?.teams) && cloud.teams.length > 0) {
+    return cloud.teams;
   }
-  return res.json();
+
+  // 3. Fallback do localStorage
+  try {
+    const raw = localStorage.getItem('cx_teams_data');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
+  throw new Error('Falha ao carregar equipes');
 }
 
 export async function addTeamApi(
   nome: string,
   emoji: string
 ): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
-  const res = await fetch('/api/teams', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nome, emoji }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao criar equipe no servidor' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
-  }
-  return res.json();
+  // 1. Tenta POST /api/teams
+  try {
+    const res = await fetch('/api/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, emoji }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      savePortalConfigToTrelloDirect(data).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 2. Fallback direto no client
+  let teams: TeamInfo[] = [];
+  try {
+    const raw = localStorage.getItem('cx_teams_data');
+    if (raw) teams = JSON.parse(raw);
+  } catch {}
+  let rcas: Record<string, string[]> = {};
+  try {
+    const rawR = localStorage.getItem('cx_rcas_data');
+    if (rawR) rcas = JSON.parse(rawR);
+  } catch {}
+
+  const cleanName = nome.trim();
+  const id = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+  teams.push({ id, nome: cleanName, emoji: emoji || '⚡' });
+  if (!rcas[cleanName]) rcas[cleanName] = [];
+
+  localStorage.setItem('cx_teams_data', JSON.stringify(teams));
+  localStorage.setItem('cx_rcas_data', JSON.stringify(rcas));
+  await savePortalConfigToTrelloDirect({ teams, rcas });
+
+  return { teams, rcas };
 }
 
 export async function updateTeamApi(
   id: string,
   updates: { nome?: string; emoji?: string }
 ): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
-  // Try PUT /api/teams/:id first
+  // 1. Tenta PUT /api/teams/:id
   try {
     const res = await fetch(`/api/teams/${encodeURIComponent(id)}`, {
       method: 'PUT',
@@ -342,21 +581,58 @@ export async function updateTeamApi(
       body: JSON.stringify({ ...updates, id }),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      savePortalConfigToTrelloDirect(data).catch(() => {});
+      return data;
     }
   } catch {}
 
-  // Fallback to POST /api/teams/update
-  const resFallback = await fetch('/api/teams/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, ...updates }),
-  });
-  if (!resFallback.ok) {
-    const err = await resFallback.json().catch(() => ({ error: 'Erro ao atualizar equipe no servidor' }));
-    throw new Error(err.error || `Erro HTTP ${resFallback.status}`);
+  // 2. Tenta POST /api/teams/update
+  try {
+    const resFallback = await fetch('/api/teams/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...updates }),
+    });
+    if (resFallback.ok) {
+      const data = await resFallback.json();
+      savePortalConfigToTrelloDirect(data).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // 3. Fallback direto no client
+  let teams: TeamInfo[] = [];
+  try {
+    const raw = localStorage.getItem('cx_teams_data');
+    if (raw) teams = JSON.parse(raw);
+  } catch {}
+  let rcas: Record<string, string[]> = {};
+  try {
+    const rawR = localStorage.getItem('cx_rcas_data');
+    if (rawR) rcas = JSON.parse(rawR);
+  } catch {}
+
+  const idx = teams.findIndex((t) => t.id === id || t.nome.toLowerCase() === id.toLowerCase());
+  if (idx !== -1) {
+    const oldName = teams[idx].nome;
+    const newName = updates.nome?.trim() || oldName;
+    teams[idx] = {
+      ...teams[idx],
+      nome: newName,
+      emoji: updates.emoji?.trim() || teams[idx].emoji,
+    };
+    if (oldName !== newName && rcas[oldName]) {
+      rcas[newName] = rcas[oldName];
+      delete rcas[oldName];
+    }
   }
-  return resFallback.json();
+
+  localStorage.setItem('cx_teams_data', JSON.stringify(teams));
+  localStorage.setItem('cx_rcas_data', JSON.stringify(rcas));
+  await savePortalConfigToTrelloDirect({ teams, rcas });
+
+  return { teams, rcas };
 }
 
 export async function deleteTeamApi(
@@ -369,29 +645,55 @@ export async function deleteTeamApi(
       body: JSON.stringify({ id }),
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      savePortalConfigToTrelloDirect(data).catch(() => {});
+      return data;
     }
   } catch {}
 
-  const resFallback = await fetch('/api/teams/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id }),
-  });
-  if (!resFallback.ok) {
-    const err = await resFallback.json().catch(() => ({ error: 'Erro ao remover equipe no servidor' }));
-    throw new Error(err.error || `Erro HTTP ${resFallback.status}`);
-  }
-  return resFallback.json();
+  try {
+    const resFallback = await fetch('/api/teams/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (resFallback.ok) {
+      const data = await resFallback.json();
+      savePortalConfigToTrelloDirect(data).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  // Fallback client
+  let teams: TeamInfo[] = [];
+  try {
+    const raw = localStorage.getItem('cx_teams_data');
+    if (raw) teams = JSON.parse(raw);
+  } catch {}
+  let rcas: Record<string, string[]> = {};
+  try {
+    const rawR = localStorage.getItem('cx_rcas_data');
+    if (rawR) rcas = JSON.parse(rawR);
+  } catch {}
+
+  teams = teams.filter((t) => t.id !== id && t.nome.toLowerCase() !== id.toLowerCase());
+  localStorage.setItem('cx_teams_data', JSON.stringify(teams));
+  await savePortalConfigToTrelloDirect({ teams, rcas });
+
+  return { teams, rcas };
 }
 
 export async function resetTeamsApi(): Promise<{ teams: TeamInfo[]; rcas: Record<string, string[]> }> {
-  const res = await fetch('/api/teams/reset', {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro ao restaurar equipes padrão no servidor' }));
-    throw new Error(err.error || `Erro HTTP ${res.status}`);
-  }
-  return res.json();
+  try {
+    const res = await fetch('/api/teams/reset', {
+      method: 'POST',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      savePortalConfigToTrelloDirect(data).catch(() => {});
+      return data;
+    }
+  } catch {}
+
+  return { teams: [], rcas: {} };
 }

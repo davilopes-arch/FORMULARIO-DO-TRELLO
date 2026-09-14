@@ -364,7 +364,7 @@ export async function deleteBoardLabel(id: string) {
 // --- PORTAL CONFIG PERSISTENCE ON TRELLO (PERMANENT STORAGE) ---
 const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a'; // List EXEMPLOS
-let configCardIdCache: string | null = '6aa4159a166ecd038937fbfd';
+let configCardIdCache: string | null = '6aa8433d68d41358727d4b45';
 
 export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rcas?: Record<string, string[]> } | null> {
   // 1. Try direct fetch by cached card ID (super fast ~150ms)

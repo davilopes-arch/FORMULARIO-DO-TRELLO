@@ -203,21 +203,66 @@ export default function App() {
 
   // RCA Admin Handlers
   const handleAddRCA = async (team: TeamName, name: string) => {
-    const updated = await addRCAApi(team, name);
+    const cleanName = name.trim().toUpperCase();
+    const key = Object.keys(rcasByTeam).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team;
+    const currentList = rcasByTeam[key] ? [...rcasByTeam[key]] : [];
+    if (!currentList.includes(cleanName)) {
+      currentList.push(cleanName);
+      currentList.sort();
+    }
+    const updated = { ...rcasByTeam, [key]: currentList };
     setRcasByTeam(updated);
     localStorage.setItem('cx_rcas_data', JSON.stringify(updated));
+
+    try {
+      const serverUpdated = await addRCAApi(team, cleanName);
+      if (serverUpdated && typeof serverUpdated === 'object') {
+        setRcasByTeam(serverUpdated);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(serverUpdated));
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar adição de consultor:', err);
+    }
   };
 
   const handleRenameRCA = async (team: TeamName, oldName: string, newName: string) => {
-    const updated = await renameRCAApi(team, oldName, newName);
+    const cleanOld = oldName.trim().toUpperCase();
+    const cleanNew = newName.trim().toUpperCase();
+    const key = Object.keys(rcasByTeam).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team;
+    const currentList = (rcasByTeam[key] || []).map((n) => (n.trim().toUpperCase() === cleanOld ? cleanNew : n));
+    currentList.sort();
+    const updated = { ...rcasByTeam, [key]: currentList };
     setRcasByTeam(updated);
     localStorage.setItem('cx_rcas_data', JSON.stringify(updated));
+
+    try {
+      const serverUpdated = await renameRCAApi(team, cleanOld, cleanNew);
+      if (serverUpdated && typeof serverUpdated === 'object') {
+        setRcasByTeam(serverUpdated);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(serverUpdated));
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar renomeação de consultor:', err);
+    }
   };
 
   const handleRemoveRCA = async (team: TeamName, name: string) => {
-    const updated = await removeRCAApi(team, name);
+    const cleanName = name.trim().toUpperCase();
+    const key = Object.keys(rcasByTeam).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team;
+    const currentList = (rcasByTeam[key] || []).filter((n) => n.trim().toUpperCase() !== cleanName);
+    const updated = { ...rcasByTeam, [key]: currentList };
     setRcasByTeam(updated);
     localStorage.setItem('cx_rcas_data', JSON.stringify(updated));
+
+    try {
+      const serverUpdated = await removeRCAApi(team, cleanName);
+      if (serverUpdated && typeof serverUpdated === 'object') {
+        setRcasByTeam(serverUpdated);
+        localStorage.setItem('cx_rcas_data', JSON.stringify(serverUpdated));
+      }
+    } catch (err) {
+      console.warn('Erro ao sincronizar remoção de consultor:', err);
+    }
   };
 
   // Equipe Admin Handlers

@@ -129,31 +129,46 @@ apiRouter.get('/rcas', async (req, res) => {
   res.json(getRCAs());
 });
 
-apiRouter.post('/rcas', async (req, res) => {
-  const { team, name } = req.body;
+const handleRcaAdd = async (req: express.Request, res: express.Response) => {
+  const team = (req.body?.team || req.query?.team || '').toString().trim();
+  const name = (req.body?.name || req.query?.name || '').toString().trim();
   if (!team || !name) return res.status(400).json({ error: 'Equipe e nome são obrigatórios' });
   const result = await addRCA(team as TeamName, name);
   if (!result.success) return res.status(400).json(result);
   res.status(201).json(getRCAs());
-});
+};
 
-apiRouter.put('/rcas', async (req, res) => {
-  const { team, oldName, newName } = req.body;
+apiRouter.post('/rcas', handleRcaAdd);
+apiRouter.post('/rcas/add', handleRcaAdd);
+
+const handleRcaRename = async (req: express.Request, res: express.Response) => {
+  const team = (req.body?.team || req.query?.team || '').toString().trim();
+  const oldName = (req.body?.oldName || req.query?.oldName || '').toString().trim();
+  const newName = (req.body?.newName || req.query?.newName || '').toString().trim();
   if (!team || !oldName || !newName) {
     return res.status(400).json({ error: 'Equipe, nome antigo e novo nome são obrigatórios' });
   }
   const result = await renameRCA(team as TeamName, oldName, newName);
   if (!result.success) return res.status(400).json(result);
   res.json(getRCAs());
-});
+};
 
-apiRouter.delete('/rcas', async (req, res) => {
-  const { team, name } = req.body;
+apiRouter.put('/rcas', handleRcaRename);
+apiRouter.post('/rcas/rename', handleRcaRename);
+apiRouter.post('/rcas/update', handleRcaRename);
+
+const handleRcaDelete = async (req: express.Request, res: express.Response) => {
+  const team = (req.body?.team || req.query?.team || '').toString().trim();
+  const name = (req.body?.name || req.query?.name || '').toString().trim();
   if (!team || !name) return res.status(400).json({ error: 'Equipe e nome são obrigatórios' });
   const result = await removeRCA(team as TeamName, name);
   if (!result.success) return res.status(400).json(result);
   res.json(getRCAs());
-});
+};
+
+apiRouter.delete('/rcas', handleRcaDelete);
+apiRouter.post('/rcas/delete', handleRcaDelete);
+apiRouter.post('/rcas/remove', handleRcaDelete);
 
 // 7. Teams Management (Editable name and icon/emoji with persistence)
 apiRouter.get('/teams', async (req, res) => {
