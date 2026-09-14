@@ -1,0 +1,93 @@
+import math
+
+# Generate the exact SVG for Sou Energy logo
+svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" fill="none" width="100%" height="100%">
+  <defs>
+    <!-- Gradient for underline bar -->
+    <linearGradient id="souBarGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFCC14" />
+      <stop offset="48%" stop-color="#FF7300" />
+      <stop offset="100%" stop-color="#E82414" />
+    </linearGradient>
+
+    <!-- Master Petal Definition (aperture blade) -->
+    <!-- Center (0,0), outer R ~ 58, inner R ~ 25 -->
+    <path id="souPetal" d="
+      M 24.5 -6.0
+      C 30.5 -10.5, 42.0 -16.0, 52.5 -18.0
+      C 55.0 -18.5, 57.5 -16.0, 57.0 -12.5
+      C 56.0 6.0, 52.5 24.0, 42.0 38.5
+      C 39.5 42.0, 34.0 41.5, 31.5 37.5
+      C 27.0 30.5, 25.5 22.0, 24.5 13.0
+      C 23.5 6.0, 23.0 0.0, 24.5 -6.0 Z
+    " />
+  </defs>
+
+  <!-- Group: Sun Emblem (Center at 82, 80) -->
+  <g transform="translate(82, 80)">
+    <!-- 1. Top-left: Pure Red -->
+    <use href="#souPetal" fill="#E52213" transform="rotate(-120)" />
+    <!-- 2. Top: Vivid Orange -->
+    <use href="#souPetal" fill="#FF5E00" transform="rotate(-60)" />
+    <!-- 3. Top-right: Tangerine Orange -->
+    <use href="#souPetal" fill="#FF8D00" transform="rotate(0)" />
+    <!-- 4. Bottom-right: Golden Amber Yellow -->
+    <use href="#souPetal" fill="#FFC814" transform="rotate(60)" />
+    <!-- 5. Bottom: Warm Orange -->
+    <use href="#souPetal" fill="#FF7400" transform="rotate(120)" />
+    <!-- 6. Bottom-left: Deep Coral Orange -->
+    <use href="#souPetal" fill="#FF4700" transform="rotate(180)" />
+  </g>
+
+  <!-- Group: Wordmark "sou energy" -->
+  <g
+    font-family="'Fredoka', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-weight="700"
+    letter-spacing="-1.5px"
+  >
+    <!-- Top Word: "sou" -->
+    <text
+      x="172"
+      y="74"
+      font-size="64"
+      fill="#F26622"
+      stroke="#FFFFFF"
+      stroke-width="7"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+      paint-order="stroke fill"
+    >sou</text>
+
+    <!-- Bottom Word: "energy" -->
+    <text
+      x="170"
+      y="132"
+      font-size="68"
+      fill="#F26622"
+      stroke="#FFFFFF"
+      stroke-width="7"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+      paint-order="stroke fill"
+    >energy</text>
+  </g>
+
+  <!-- Gradient Underline Bar beneath "energy" -->
+  <rect
+    x="174"
+    y="141"
+    width="186"
+    height="10"
+    rx="5"
+    fill="url(#souBarGradient)"
+    stroke="#FFFFFF"
+    stroke-width="3.5"
+    stroke-linejoin="round"
+    paint-order="stroke fill"
+  />
+</svg>"""
+
+with open("public/sou-energy-logo.svg", "w") as f:
+    f.write(svg)
+
+print("SVG written to public/sou-energy-logo.svg")

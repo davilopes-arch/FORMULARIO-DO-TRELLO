@@ -1,4 +1,5 @@
 import { useState, KeyboardEvent } from 'react';
+import { SouEnergyLogo } from './SouEnergyLogo';
 
 interface LoginViewProps {
   onLogin: (email: string) => void;
@@ -28,6 +29,9 @@ export function LoginView({ onLogin }: LoginViewProps) {
   return (
     <div className="py-8">
       <div className="login-box">
+        <div className="flex justify-center mb-5">
+          <SouEnergyLogo height={48} />
+        </div>
         <h2>Identificação</h2>
         <p>
           Informe seu e-mail para continuar. Ele será registrado no card do Trello como responsável pelo cadastro.

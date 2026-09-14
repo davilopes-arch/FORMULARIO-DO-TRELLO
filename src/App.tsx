@@ -34,6 +34,7 @@ import { DemandasForm } from './components/DemandasForm';
 import { FreteForm } from './components/FreteForm';
 import { CadastroForm } from './components/CadastroForm';
 import { SuccessView } from './components/SuccessView';
+import { SuccessModal } from './components/SuccessModal';
 import { EquipeModal } from './components/EquipeModal';
 
 type ViewState =
@@ -77,6 +78,7 @@ export default function App() {
   const [createdCardUrl, setCreatedCardUrl] = useState('');
   const [lastFormType, setLastFormType] = useState<FormType>('demandas');
   const [lastSummary, setLastSummary] = useState<CardSummaryData | null>(null);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   const isAdmin = Boolean(
     userEmail && userEmail.toLowerCase().trim() === ADMIN_EMAIL
@@ -467,6 +469,7 @@ export default function App() {
         idClienteOuIntegrador: data.idint,
         situacoesNomes,
       });
+      setIsSuccessModalOpen(true);
       setView('success');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
@@ -548,6 +551,7 @@ export default function App() {
         cep: data.cep,
         linkOrcamento: data.linkOrcamento,
       });
+      setIsSuccessModalOpen(true);
       setView('success');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
@@ -628,6 +632,7 @@ export default function App() {
         teamEmoji: data.equipe?.emoji,
         origem: data.origem || undefined,
       });
+      setIsSuccessModalOpen(true);
       setView('success');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
@@ -775,6 +780,26 @@ export default function App() {
           onBackToMenu={handleBackToMenu}
         />
       )}
+
+      {/* MODAL DE CONFIRMAÇÃO COM ATALHO DIRETO */}
+      <SuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+        formType={lastFormType}
+        cardUrl={createdCardUrl}
+        summary={lastSummary}
+        onNewCard={() => {
+          setIsSuccessModalOpen(false);
+          if (lastFormType === 'demandas') setView('form_demandas');
+          else if (lastFormType === 'frete') setView('form_frete');
+          else setView('form_cadastro');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onBackToMenu={() => {
+          setIsSuccessModalOpen(false);
+          handleBackToMenu();
+        }}
+      />
 
       {/* MODAL GERENCIAMENTO DE EQUIPES (Exclusivo Administrador) */}
       {isAdmin && (

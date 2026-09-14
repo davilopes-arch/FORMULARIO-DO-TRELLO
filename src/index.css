@@ -441,29 +441,33 @@ body::before {
 }
 .et-btn {
   border: 1.5px solid var(--border2);
-  border-radius: 4px;
-  padding: 7px 14px;
+  border-radius: 6px;
+  padding: 8px 14px;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 0.78rem;
   font-weight: 500;
   color: var(--ink2);
   background: var(--surface);
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   user-select: none;
 }
 .et-btn:hover {
   border-color: var(--solar);
   color: var(--solar-dark);
+  background: var(--solar-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(232, 93, 4, 0.08);
 }
 .et-btn.sel {
+  border-color: var(--solar);
   border-width: 2px;
+  background: var(--solar-bg);
+  color: var(--solar-dark);
   font-weight: 700;
-  background: var(--ink);
-  color: var(--surface);
-  border-color: var(--ink);
+  box-shadow: 2px 2px 0 var(--solar);
 }
 .et-dot {
   width: 8px;
