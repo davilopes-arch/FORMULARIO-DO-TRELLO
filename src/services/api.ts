@@ -259,17 +259,37 @@ export async function deleteBoardLabel(id: string): Promise<{ success: boolean }
 }
 
 // --- CONFIG CARD CLOUD SYNC (TRELLO PERMANENT STORAGE) ---
-const CONFIG_CARD_ID = '6aa8433d68d41358727d4b45';
+let configCardIdDirect = '6aa845b51e7c539cf39a9608';
+const CONFIG_LIST_ID = '69713bd2d3693600213b526a';
+const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
 
 async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]; rcas?: Record<string, string[]> } | null> {
+  // 1. Try cached card
+  if (configCardIdDirect) {
+    try {
+      const res = await fetch(
+        `https://api.trello.com/1/cards/${configCardIdDirect}?fields=desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+      );
+      if (res.ok) {
+        const card = await res.json();
+        if (card?.desc) {
+          return JSON.parse(card.desc);
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Try search in EXEMPLOS list
   try {
-    const res = await fetch(
-      `https://api.trello.com/1/cards/${CONFIG_CARD_ID}?fields=desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+    const listRes = await fetch(
+      `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name,desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
     );
-    if (res.ok) {
-      const card = await res.json();
-      if (card?.desc) {
-        return JSON.parse(card.desc);
+    if (listRes.ok) {
+      const cards = await listRes.json();
+      const found = Array.isArray(cards) ? cards.find((c: any) => c.name.includes('[SISTEMA] Configurações de Equipes')) : null;
+      if (found) {
+        configCardIdDirect = found.id;
+        if (found.desc) return JSON.parse(found.desc);
       }
     }
   } catch (err) {
@@ -280,7 +300,6 @@ async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]
 
 async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?: Record<string, string[]> }): Promise<boolean> {
   try {
-    // Merge with existing local data so we never overwrite other fields
     let teamsData = data.teams;
     if (!teamsData) {
       try {
@@ -302,20 +321,72 @@ async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?:
       rcas: rcasData,
       lastUpdated: new Date().toISOString(),
     };
+    const jsonStr = JSON.stringify(payload, null, 2);
 
-    const res = await fetch(
-      `https://api.trello.com/1/cards/${CONFIG_CARD_ID}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+    // 1. Try PUT on cached card
+    if (configCardIdDirect) {
+      try {
+        const res = await fetch(
+          `https://api.trello.com/1/cards/${configCardIdDirect}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ desc: jsonStr }),
+          }
+        );
+        if (res.ok) return true;
+      } catch {}
+    }
+
+    // 2. Search in list
+    let targetCardId = configCardIdDirect;
+    try {
+      const listRes = await fetch(
+        `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+      );
+      if (listRes.ok) {
+        const cards = await listRes.json();
+        const found = Array.isArray(cards) ? cards.find((c: any) => c.name.includes('[SISTEMA] Configurações de Equipes')) : null;
+        if (found) targetCardId = found.id;
+      }
+    } catch {}
+
+    if (targetCardId) {
+      configCardIdDirect = targetCardId;
+      const res = await fetch(
+        `https://api.trello.com/1/cards/${targetCardId}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ desc: jsonStr }),
+        }
+      );
+      if (res.ok) return true;
+    }
+
+    // 3. Create if missing
+    const createRes = await fetch(
+      `https://api.trello.com/1/cards?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
       {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ desc: JSON.stringify(payload, null, 2) }),
+        body: JSON.stringify({
+          idList: CONFIG_LIST_ID,
+          name: CONFIG_CARD_NAME,
+          desc: jsonStr,
+          pos: 'bottom',
+        }),
       }
     );
-    return res.ok;
+    if (createRes.ok) {
+      const newCard = await createRes.json();
+      if (newCard?.id) configCardIdDirect = newCard.id;
+      return true;
+    }
   } catch (err) {
     console.warn('Falha ao salvar config card diretamente no Trello:', err);
-    return false;
   }
+  return false;
 }
 
 export async function fetchRCAs(): Promise<Record<TeamName, string[]>> {

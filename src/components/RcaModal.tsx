@@ -37,6 +37,13 @@ export function RcaModal({
   const [editMode, setEditMode] = useState(false);
   const [tempSelection, setTempSelection] = useState<RCAInfo | null>(selectedRCA);
 
+  // Estados inline para evitar window.prompt e window.confirm (bloqueados em iframes)
+  const [addingTeam, setAddingTeam] = useState<string | null>(null);
+  const [newRcaName, setNewRcaName] = useState('');
+  const [editingItem, setEditingItem] = useState<{ team: string; oldName: string; currentVal: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ team: string; name: string } | null>(null);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
   // Filtered teams list in order
   const activeTeams = useMemo(() => {
     if (filteredTeam && rcasByTeam[filteredTeam]) {
@@ -52,51 +59,86 @@ export function RcaModal({
 
   if (!isOpen) return null;
 
+  const showFeedback = (msg: string) => {
+    setFeedbackMsg(msg);
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
   const handleConfirm = () => {
     if (!tempSelection) {
-      alert('Selecione um consultor.');
+      showFeedback('Selecione um consultor.');
       return;
     }
     onSelectRCA(tempSelection);
     onClose();
   };
 
-  const handleAdd = async (team: TeamName) => {
-    const nome = prompt(`Nome do novo consultor para a equipe ${team}:`);
-    if (!nome) return;
-    const cleanName = nome.trim().toUpperCase();
-    if (!cleanName) return;
+  const startAdd = (team: TeamName) => {
+    setAddingTeam(team);
+    setNewRcaName('');
+    setEditingItem(null);
+    setConfirmDelete(null);
+  };
+
+  const cancelAdd = () => {
+    setAddingTeam(null);
+    setNewRcaName('');
+  };
+
+  const confirmAdd = async (team: TeamName) => {
+    const clean = newRcaName.trim().toUpperCase();
+    if (!clean) return;
     try {
-      await onAddRCA(team, cleanName);
+      await onAddRCA(team, clean);
+      showFeedback(`Consultor "${clean}" adicionado!`);
+      setAddingTeam(null);
+      setNewRcaName('');
     } catch (err: any) {
-      alert(err.message || 'Erro ao adicionar consultor');
+      showFeedback(err.message || 'Erro ao adicionar consultor');
     }
   };
 
-  const handleRename = async (team: TeamName, oldName: string) => {
-    const novo = prompt(`Renomear "${oldName}" para:`, oldName);
-    if (!novo) return;
-    const cleanNew = novo.trim().toUpperCase();
-    if (!cleanNew || cleanNew === oldName) return;
+  const startRename = (team: TeamName, name: string) => {
+    setEditingItem({ team, oldName: name, currentVal: name });
+    setAddingTeam(null);
+    setConfirmDelete(null);
+  };
+
+  const confirmRename = async () => {
+    if (!editingItem) return;
+    const cleanNew = editingItem.currentVal.trim().toUpperCase();
+    if (!cleanNew || cleanNew === editingItem.oldName) {
+      setEditingItem(null);
+      return;
+    }
     try {
-      await onRenameRCA(team, oldName, cleanNew);
-      if (tempSelection?.nome === oldName) {
-        setTempSelection({ nome: cleanNew, eq: team });
+      await onRenameRCA(editingItem.team as TeamName, editingItem.oldName, cleanNew);
+      if (tempSelection?.nome === editingItem.oldName) {
+        setTempSelection({ nome: cleanNew, eq: editingItem.team as TeamName });
       }
+      showFeedback(`Renomeado para "${cleanNew}"!`);
+      setEditingItem(null);
     } catch (err: any) {
-      alert(err.message || 'Erro ao renomear consultor');
+      showFeedback(err.message || 'Erro ao renomear consultor');
     }
   };
 
-  const handleRemove = async (team: TeamName, name: string) => {
-    if (!confirm(`Remover "${name}" da lista de consultores da equipe ${team}?`)) return;
+  const startDelete = (team: TeamName, name: string) => {
+    setConfirmDelete({ team, name });
+    setAddingTeam(null);
+    setEditingItem(null);
+  };
+
+  const executeDelete = async (team: TeamName, name: string) => {
     try {
       await onRemoveRCA(team, name);
       if (tempSelection?.nome === name) {
         setTempSelection(null);
       }
+      showFeedback(`Consultor "${name}" removido!`);
+      setConfirmDelete(null);
     } catch (err: any) {
-      alert(err.message || 'Erro ao remover consultor');
+      showFeedback(err.message || 'Erro ao remover consultor');
     }
   };
 
@@ -132,7 +174,12 @@ export function RcaModal({
                 <button
                   type="button"
                   className={`rca-edit-btn ${editMode ? 'active' : ''}`}
-                  onClick={() => setEditMode(!editMode)}
+                  onClick={() => {
+                    setEditMode(!editMode);
+                    setAddingTeam(null);
+                    setEditingItem(null);
+                    setConfirmDelete(null);
+                  }}
                 >
                   ✎ Editar
                 </button>
@@ -148,6 +195,12 @@ export function RcaModal({
             onChange={(e) => setSearchTerm(e.target.value)}
             autoFocus
           />
+
+          {feedbackMsg && (
+            <div className="mt-2 text-xs font-medium text-amber-800 bg-amber-100 border border-amber-300 rounded px-2.5 py-1 text-center animate-fadeIn">
+              {feedbackMsg}
+            </div>
+          )}
         </div>
 
         <div className="modal-body" id="rca-modal-body">
@@ -168,34 +221,125 @@ export function RcaModal({
                     <button
                       type="button"
                       className="rca-add-btn"
-                      onClick={() => handleAdd(team)}
+                      onClick={() => startAdd(team as TeamName)}
                     >
                       + Adicionar
                     </button>
                   )}
                 </div>
 
+                {/* Painel Inline de Adição */}
+                {addingTeam === team && (
+                  <div className="flex items-center gap-2 mb-3 p-2 bg-orange-50 border border-orange-300 rounded-lg animate-fadeIn">
+                    <input
+                      type="text"
+                      placeholder="Nome do novo consultor..."
+                      className="flex-1 px-3 py-1.5 text-xs font-semibold uppercase bg-white border border-gray-300 rounded focus:outline-none focus:border-orange-500 shadow-sm"
+                      value={newRcaName}
+                      onChange={(e) => setNewRcaName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') confirmAdd(team as TeamName);
+                        if (e.key === 'Escape') cancelAdd();
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors shadow-sm"
+                      onClick={() => confirmAdd(team as TeamName)}
+                    >
+                      Salvar
+                    </button>
+                    <button
+                      type="button"
+                      className="px-2 py-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                      onClick={cancelAdd}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
                 <div className="rca-names-grid">
                   {filtered.map((nome) => {
                     const isActive = tempSelection?.nome === nome;
 
+                    // Modo de confirmação de exclusão inline
+                    if (confirmDelete && confirmDelete.team === team && confirmDelete.name === nome) {
+                      return (
+                        <div className="flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded-lg border border-red-300 animate-fadeIn" key={nome}>
+                          <span className="text-xs text-red-800 font-bold truncate max-w-[100px]">Excluir {nome}?</span>
+                          <button
+                            type="button"
+                            className="px-2 py-0.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded shadow-sm"
+                            onClick={() => executeDelete(team as TeamName, nome)}
+                          >
+                            Sim
+                          </button>
+                          <button
+                            type="button"
+                            className="px-1.5 py-0.5 text-xs text-gray-600 hover:text-gray-900"
+                            onClick={() => setConfirmDelete(null)}
+                          >
+                            Não
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    // Modo de edição/renomeação inline
+                    if (editingItem && editingItem.team === team && editingItem.oldName === nome) {
+                      return (
+                        <div className="flex items-center gap-1 bg-amber-50 p-1 rounded-lg border border-amber-300 animate-fadeIn" key={nome}>
+                          <input
+                            type="text"
+                            className="px-2 py-1 text-xs uppercase font-semibold bg-white border border-amber-400 rounded w-36 focus:outline-none"
+                            value={editingItem.currentVal}
+                            onChange={(e) => setEditingItem({ ...editingItem, currentVal: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') confirmRename();
+                              if (e.key === 'Escape') setEditingItem(null);
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            className="px-2 py-1 text-xs font-bold text-white bg-green-600 hover:bg-green-700 rounded shadow-sm"
+                            onClick={confirmRename}
+                            title="Salvar novo nome"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            className="px-1.5 py-1 text-xs text-gray-500 hover:text-gray-800"
+                            onClick={() => setEditingItem(null)}
+                            title="Cancelar"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    // Modo de edição ativado pelo Admin
                     if (editMode && isAdmin) {
                       return (
                         <div className="rca-name-edit" key={nome}>
                           <span className="rca-name-edit-text">{nome}</span>
                           <button
                             type="button"
-                            className="rca-name-edit-icon"
+                            className="rca-name-edit-icon hover:text-blue-600"
                             title="Renomear"
-                            onClick={() => handleRename(team, nome)}
+                            onClick={() => startRename(team as TeamName, nome)}
                           >
                             ✎
                           </button>
                           <button
                             type="button"
-                            className="rca-name-edit-icon rca-name-edit-del"
+                            className="rca-name-edit-icon rca-name-edit-del hover:text-red-600"
                             title="Remover"
-                            onClick={() => handleRemove(team, nome)}
+                            onClick={() => startDelete(team as TeamName, nome)}
                           >
                             ✕
                           </button>
