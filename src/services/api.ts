@@ -259,7 +259,7 @@ export async function deleteBoardLabel(id: string): Promise<{ success: boolean }
 }
 
 // --- CONFIG CARD CLOUD SYNC (TRELLO PERMANENT STORAGE) ---
-let configCardIdDirect = '6aa845b51e7c539cf39a9608';
+let configCardIdDirect = '6aa85a5577311ed10018dca9';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a';
 const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
 
@@ -298,7 +298,7 @@ async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]
   return null;
 }
 
-async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?: Record<string, string[]> }): Promise<boolean> {
+export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?: Record<string, string[]> }): Promise<boolean> {
   try {
     let teamsData = data.teams;
     if (!teamsData) {
@@ -335,11 +335,14 @@ async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?:
           }
         );
         if (res.ok) return true;
-      } catch {}
+        configCardIdDirect = '';
+      } catch {
+        configCardIdDirect = '';
+      }
     }
 
     // 2. Search in list
-    let targetCardId = configCardIdDirect;
+    let targetCardId: string | null = null;
     try {
       const listRes = await fetch(
         `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
@@ -653,8 +656,12 @@ export async function updateTeamApi(
     });
     if (res.ok) {
       const data = await res.json();
-      savePortalConfigToTrelloDirect(data).catch(() => {});
-      return data;
+      if (data && Array.isArray(data.teams)) {
+        localStorage.setItem('cx_teams_data', JSON.stringify(data.teams));
+        if (data.rcas) localStorage.setItem('cx_rcas_data', JSON.stringify(data.rcas));
+        await savePortalConfigToTrelloDirect(data).catch(() => {});
+        return data;
+      }
     }
   } catch {}
 
@@ -667,8 +674,12 @@ export async function updateTeamApi(
     });
     if (resFallback.ok) {
       const data = await resFallback.json();
-      savePortalConfigToTrelloDirect(data).catch(() => {});
-      return data;
+      if (data && Array.isArray(data.teams)) {
+        localStorage.setItem('cx_teams_data', JSON.stringify(data.teams));
+        if (data.rcas) localStorage.setItem('cx_rcas_data', JSON.stringify(data.rcas));
+        await savePortalConfigToTrelloDirect(data).catch(() => {});
+        return data;
+      }
     }
   } catch {}
 
@@ -684,14 +695,17 @@ export async function updateTeamApi(
     if (rawR) rcas = JSON.parse(rawR);
   } catch {}
 
+  const cleanName = updates.nome?.trim();
+  const cleanEmoji = updates.emoji?.trim();
+
   const idx = teams.findIndex((t) => t.id === id || t.nome.toLowerCase() === id.toLowerCase());
   if (idx !== -1) {
     const oldName = teams[idx].nome;
-    const newName = updates.nome?.trim() || oldName;
+    const newName = cleanName || oldName;
     teams[idx] = {
       ...teams[idx],
       nome: newName,
-      emoji: updates.emoji?.trim() || teams[idx].emoji,
+      emoji: cleanEmoji || teams[idx].emoji,
     };
     if (oldName !== newName && rcas[oldName]) {
       rcas[newName] = rcas[oldName];

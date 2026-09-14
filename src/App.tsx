@@ -26,6 +26,7 @@ import {
   updateTeamApi,
   deleteTeamApi,
   resetTeamsApi,
+  savePortalConfigToTrelloDirect,
 } from './services/api';
 import { Header } from './components/Header';
 import { LoginView } from './components/LoginView';
@@ -222,6 +223,8 @@ export default function App() {
       }
     } catch (err) {
       console.warn('Erro ao sincronizar adição de consultor:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams, rcas: updated }).catch(() => {});
     }
   };
 
@@ -243,6 +246,8 @@ export default function App() {
       }
     } catch (err) {
       console.warn('Erro ao sincronizar renomeação de consultor:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams, rcas: updated }).catch(() => {});
     }
   };
 
@@ -262,6 +267,8 @@ export default function App() {
       }
     } catch (err) {
       console.warn('Erro ao sincronizar remoção de consultor:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams, rcas: updated }).catch(() => {});
     }
   };
 
@@ -294,27 +301,31 @@ export default function App() {
     setTeams(nextList);
     localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
 
+    let nextRcas = { ...rcasByTeam };
     if (oldName && newName && oldName !== newName && rcasByTeam[oldName]) {
-      const nextRcas = { ...rcasByTeam };
       nextRcas[newName] = nextRcas[oldName];
       delete nextRcas[oldName];
       setRcasByTeam(nextRcas);
       localStorage.setItem('cx_rcas_data', JSON.stringify(nextRcas));
     }
 
-    // 2. Synchronize with backend API
+    // 2. Synchronize with backend API & Trello Cloud
     try {
       const resp = await updateTeamApi(id, updates);
-      if (resp && Array.isArray(resp.teams)) {
+      if (resp && Array.isArray(resp.teams) && resp.teams.length > 0) {
         setTeams(resp.teams);
         localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+        nextList = resp.teams;
       }
-      if (resp && resp.rcas) {
+      if (resp && resp.rcas && Object.keys(resp.rcas).length > 0) {
         setRcasByTeam(resp.rcas);
         localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
+        nextRcas = resp.rcas;
       }
     } catch (err) {
-      console.warn('Backend sync failed, changes kept locally:', err);
+      console.warn('Backend sync failed, saving directly to Trello:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams: nextList, rcas: nextRcas }).catch(() => {});
     }
   };
 
@@ -323,74 +334,89 @@ export default function App() {
     const cleanEmoji = emoji.trim() || '⚡';
     const newId = cleanNome.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
     const newTeam: TeamInfo = { id: newId, nome: cleanNome, emoji: cleanEmoji };
-    const nextList = [...teams, newTeam];
+    let nextList = [...teams, newTeam];
 
     setTeams(nextList);
     localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
 
-    if (!rcasByTeam[cleanNome]) {
-      setRcasByTeam((prev) => {
-        const next = { ...prev, [cleanNome]: [] };
-        localStorage.setItem('cx_rcas_data', JSON.stringify(next));
-        return next;
-      });
+    let nextRcas = { ...rcasByTeam };
+    if (!nextRcas[cleanNome]) {
+      nextRcas[cleanNome] = [];
+      setRcasByTeam(nextRcas);
+      localStorage.setItem('cx_rcas_data', JSON.stringify(nextRcas));
     }
 
     try {
       const resp = await addTeamApi(cleanNome, cleanEmoji);
-      if (resp && Array.isArray(resp.teams)) {
+      if (resp && Array.isArray(resp.teams) && resp.teams.length > 0) {
         setTeams(resp.teams);
         localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+        nextList = resp.teams;
       }
-      if (resp && resp.rcas) {
+      if (resp && resp.rcas && Object.keys(resp.rcas).length > 0) {
         setRcasByTeam(resp.rcas);
         localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
+        nextRcas = resp.rcas;
       }
     } catch (err) {
-      console.warn('Backend sync failed, changes kept locally:', err);
+      console.warn('Backend sync failed, saving directly to Trello:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams: nextList, rcas: nextRcas }).catch(() => {});
     }
   };
 
   const handleRemoveTeam = async (id: string) => {
-    const nextList = teams.filter(
+    let nextList = teams.filter(
       (t) => t.id !== id && t.nome.toLowerCase() !== id.toLowerCase()
     );
     setTeams(nextList);
     localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
+
+    let nextRcas = { ...rcasByTeam };
 
     try {
       const resp = await deleteTeamApi(id);
       if (resp && Array.isArray(resp.teams)) {
         setTeams(resp.teams);
         localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+        nextList = resp.teams;
       }
       if (resp && resp.rcas) {
         setRcasByTeam(resp.rcas);
         localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
+        nextRcas = resp.rcas;
       }
     } catch (err) {
-      console.warn('Backend sync failed, changes kept locally:', err);
+      console.warn('Backend sync failed, saving directly to Trello:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams: nextList, rcas: nextRcas }).catch(() => {});
     }
   };
 
   const handleResetTeams = async () => {
-    setTeams(DEFAULT_TEAMS);
-    localStorage.setItem('cx_teams_data', JSON.stringify(DEFAULT_TEAMS));
-    setRcasByTeam(INITIAL_RCAS);
-    localStorage.setItem('cx_rcas_data', JSON.stringify(INITIAL_RCAS));
+    let nextList = DEFAULT_TEAMS;
+    let nextRcas = INITIAL_RCAS;
+    setTeams(nextList);
+    localStorage.setItem('cx_teams_data', JSON.stringify(nextList));
+    setRcasByTeam(nextRcas);
+    localStorage.setItem('cx_rcas_data', JSON.stringify(nextRcas));
 
     try {
       const resp = await resetTeamsApi();
-      if (resp && Array.isArray(resp.teams)) {
+      if (resp && Array.isArray(resp.teams) && resp.teams.length > 0) {
         setTeams(resp.teams);
         localStorage.setItem('cx_teams_data', JSON.stringify(resp.teams));
+        nextList = resp.teams;
       }
-      if (resp && resp.rcas) {
+      if (resp && resp.rcas && Object.keys(resp.rcas).length > 0) {
         setRcasByTeam(resp.rcas);
         localStorage.setItem('cx_rcas_data', JSON.stringify(resp.rcas));
+        nextRcas = resp.rcas;
       }
     } catch (err) {
       console.warn('Backend sync failed, reset kept locally:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ teams: nextList, rcas: nextRcas }).catch(() => {});
     }
   };
 
