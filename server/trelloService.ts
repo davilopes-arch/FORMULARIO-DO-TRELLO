@@ -361,13 +361,39 @@ export async function deleteBoardLabel(id: string) {
   return { success: true };
 }
 
-// --- PORTAL CONFIG PERSISTENCE ON TRELLO (PERMANENT STORAGE) ---
+// --- PORTAL CONFIG PERSISTENCE ON TRELLO (PERMANENT STORAGE VIA BOARD DESC & CARD) ---
 const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a'; // List EXEMPLOS
-let configCardIdCache: string | null = '6aa85a5577311ed10018dca9';
+let configCardIdCache: string | null = null;
 
 export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rcas?: Record<string, string[]> } | null> {
-  // 1. Try direct fetch by cached card ID (super fast ~150ms)
+  // 1. Primary: Fetch from Board Description (indestructible, permanent, never deleted by card cleanup)
+  try {
+    const board = await trelloFetch<{ id: string; name: string; desc: string }>(
+      `/boards/${BOARD_ID}`,
+      {},
+      { fields: 'id,name,desc' }
+    );
+    if (board && board.desc) {
+      const match = board.desc.match(/<!-- PORTAL_CONFIG_START -->([\s\S]*?)<!-- PORTAL_CONFIG_END -->/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
+        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+          return parsed;
+        }
+      }
+      try {
+        const parsed = JSON.parse(board.desc);
+        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+          return parsed;
+        }
+      } catch {}
+    }
+  } catch (err) {
+    console.warn('Falha ao buscar config na descrição do quadro:', err);
+  }
+
+  // 2. Secondary fallback: Fetch from cached card ID if known
   if (configCardIdCache) {
     try {
       const card = await trelloFetch<{ id: string; name: string; desc: string }>(
@@ -376,15 +402,14 @@ export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rc
         { fields: 'id,name,desc' }
       );
       if (card && card.desc) {
-        const parsed = JSON.parse(card.desc);
-        return parsed;
+        return JSON.parse(card.desc);
       }
     } catch {
       configCardIdCache = null;
     }
   }
 
-  // 2. Try fetching only cards in CONFIG_LIST_ID (EXEMPLOS list, only ~2 cards)
+  // 3. Tertiary fallback: Try finding in CONFIG_LIST_ID (EXEMPLOS list)
   try {
     const listCards = await trelloFetch<{ id: string; name: string; desc: string }[]>(
       `/lists/${CONFIG_LIST_ID}/cards`,
@@ -407,9 +432,40 @@ export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rc
 
 export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Record<string, string[]> }): Promise<boolean> {
   try {
-    const jsonStr = JSON.stringify(data, null, 2);
+    const payload = {
+      teams: data.teams,
+      rcas: data.rcas,
+      lastUpdated: new Date().toISOString(),
+    };
+    const jsonStr = JSON.stringify(payload, null, 2);
 
-    // If cache not set, try to find in CONFIG_LIST_ID (only 2 cards)
+    // 1. Primary: Save directly to Board Description (indestructible, guaranteed persistence)
+    try {
+      const curBoard = await trelloFetch<{ desc: string }>(`/boards/${BOARD_ID}`, {}, { fields: 'desc' }).catch(() => null);
+      const curDesc = curBoard?.desc || '';
+      let newDesc = '';
+      if (curDesc.includes('<!-- PORTAL_CONFIG_START -->')) {
+        newDesc = curDesc.replace(
+          /<!-- PORTAL_CONFIG_START -->[\s\S]*?<!-- PORTAL_CONFIG_END -->/,
+          `<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`
+        );
+      } else {
+        newDesc = `### ⚙️ PORTAL CX - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->\n\n${curDesc}`.trim();
+      }
+
+      await trelloFetch(
+        `/boards/${BOARD_ID}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ desc: newDesc }),
+        }
+      );
+    } catch (errBoard) {
+      console.warn('Aviso: Falha ao salvar no board.desc:', errBoard);
+    }
+
+    // 2. Secondary: Also update or create backup card in EXEMPLOS list
     if (!configCardIdCache) {
       try {
         const listCards = await trelloFetch<{ id: string; name: string }[]>(
@@ -438,21 +494,24 @@ export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Recor
       }
     }
 
-    // Create if not found
-    const newCard = await trelloFetch<{ id: string }>(`/cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idList: CONFIG_LIST_ID,
-        name: CONFIG_CARD_NAME,
-        desc: jsonStr,
-        pos: 'bottom',
-      }),
-    });
-    if (newCard && newCard.id) {
-      configCardIdCache = newCard.id;
-      return true;
-    }
+    // Create backup card if not found
+    try {
+      const newCard = await trelloFetch<{ id: string }>(`/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idList: CONFIG_LIST_ID,
+          name: CONFIG_CARD_NAME,
+          desc: jsonStr,
+          pos: 'bottom',
+        }),
+      });
+      if (newCard && newCard.id) {
+        configCardIdCache = newCard.id;
+      }
+    } catch {}
+
+    return true;
   } catch (err) {
     console.error('Erro ao salvar configurações no Trello:', err);
   }

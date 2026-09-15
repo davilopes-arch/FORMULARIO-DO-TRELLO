@@ -171,6 +171,7 @@ export function getTeams(): TeamInfo[] {
 }
 
 export async function addTeam(nome: string, emoji: string): Promise<{ success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> }> {
+  await syncWithTrelloCloud().catch(() => {});
   const cleanName = nome.trim();
   const cleanEmoji = emoji.trim() || '⚡';
   if (!cleanName) return { success: false, error: 'Nome da equipe é obrigatório' };
@@ -194,6 +195,7 @@ export async function updateTeam(
   id: string,
   updates: { nome?: string; emoji?: string }
 ): Promise<{ success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> }> {
+  await syncWithTrelloCloud().catch(() => {});
   const team = currentTeams.find((t) => t.id === id || t.nome.toLowerCase() === id.toLowerCase());
   if (!team) return { success: false, error: 'Equipe não encontrada' };
 
@@ -232,6 +234,7 @@ export async function updateTeam(
 }
 
 export async function removeTeam(id: string): Promise<{ success: boolean; error?: string; teams?: TeamInfo[]; rcas?: Record<string, string[]> }> {
+  await syncWithTrelloCloud().catch(() => {});
   if (currentTeams.length <= 1) {
     return { success: false, error: 'É necessário manter pelo menos uma equipe' };
   }
@@ -270,6 +273,7 @@ export function getRCAs(): Record<string, string[]> {
 }
 
 export async function addRCA(team: string, name: string): Promise<{ success: boolean; error?: string }> {
+  await syncWithTrelloCloud().catch(() => {});
   const cleanName = name.trim().toUpperCase();
   if (!cleanName) return { success: false, error: 'Nome inválido' };
   const key = resolveTeamKey(team);
@@ -284,6 +288,7 @@ export async function addRCA(team: string, name: string): Promise<{ success: boo
 }
 
 export async function renameRCA(team: string, oldName: string, newName: string): Promise<{ success: boolean; error?: string }> {
+  await syncWithTrelloCloud().catch(() => {});
   const cleanOld = oldName.trim().toUpperCase();
   const cleanNew = newName.trim().toUpperCase();
   if (!cleanNew) return { success: false, error: 'Novo nome inválido' };
@@ -304,6 +309,7 @@ export async function renameRCA(team: string, oldName: string, newName: string):
 }
 
 export async function removeRCA(team: string, name: string): Promise<{ success: boolean; error?: string }> {
+  await syncWithTrelloCloud().catch(() => {});
   const key = resolveTeamKey(team);
   const cleanTarget = name.trim().toUpperCase();
   const list = currentRCAs[key] || [];

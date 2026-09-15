@@ -258,28 +258,58 @@ export async function deleteBoardLabel(id: string): Promise<{ success: boolean }
   }
 }
 
-// --- CONFIG CARD CLOUD SYNC (TRELLO PERMANENT STORAGE) ---
-let configCardIdDirect = '6aa85a5577311ed10018dca9';
+// Safe storage helpers for browser environments (avoids ReferenceError in Node or restricted iframes)
+function safeGetStorage(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {}
+  return null;
+}
+
+function safeSetStorage(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {}
+}
+
+// --- CONFIG CLOUD SYNC (TRELLO PERMANENT STORAGE VIA BOARD DESC & CARD) ---
+let configCardIdDirect = '';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a';
 const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
 
-async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]; rcas?: Record<string, string[]> } | null> {
-  // 1. Try cached card
-  if (configCardIdDirect) {
-    try {
-      const res = await fetch(
-        `https://api.trello.com/1/cards/${configCardIdDirect}?fields=desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
-      );
-      if (res.ok) {
-        const card = await res.json();
-        if (card?.desc) {
-          return JSON.parse(card.desc);
+export async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]; rcas?: Record<string, string[]> } | null> {
+  // 1. Primary: Fetch from Board Description (indestructible, permanent across all users and devices)
+  try {
+    const res = await fetch(
+      `https://api.trello.com/1/boards/${CLIENT_BOARD_ID}?fields=desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+    );
+    if (res.ok) {
+      const board = await res.json();
+      if (board?.desc) {
+        const match = board.desc.match(/<!-- PORTAL_CONFIG_START -->([\s\S]*?)<!-- PORTAL_CONFIG_END -->/);
+        if (match && match[1]) {
+          const parsed = JSON.parse(match[1]);
+          if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+            return parsed;
+          }
         }
+        try {
+          const parsed = JSON.parse(board.desc);
+          if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+            return parsed;
+          }
+        } catch {}
       }
-    } catch {}
+    }
+  } catch (err) {
+    console.warn('Falha ao ler config da descrição do quadro Trello:', err);
   }
 
-  // 2. Try search in EXEMPLOS list
+  // 2. Secondary fallback: Search card in EXEMPLOS list
   try {
     const listRes = await fetch(
       `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name,desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
@@ -293,7 +323,7 @@ async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]
       }
     }
   } catch (err) {
-    console.warn('Falha ao ler config card diretamente do Trello:', err);
+    console.warn('Falha ao ler config card da lista de exemplos:', err);
   }
   return null;
 }
@@ -303,7 +333,7 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
     let teamsData = data.teams;
     if (!teamsData) {
       try {
-        const localTeams = localStorage.getItem('cx_teams_data');
+        const localTeams = safeGetStorage('cx_teams_data');
         if (localTeams) teamsData = JSON.parse(localTeams);
       } catch {}
     }
@@ -311,7 +341,7 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
     let rcasData = data.rcas;
     if (!rcasData) {
       try {
-        const localRcas = localStorage.getItem('cx_rcas_data');
+        const localRcas = safeGetStorage('cx_rcas_data');
         if (localRcas) rcasData = JSON.parse(localRcas);
       } catch {}
     }
@@ -323,96 +353,134 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
     };
     const jsonStr = JSON.stringify(payload, null, 2);
 
-    // 1. Try PUT on cached card
-    if (configCardIdDirect) {
+    // Keep localStorage immediately in sync
+    if (teamsData) safeSetStorage('cx_teams_data', JSON.stringify(teamsData));
+    if (rcasData) safeSetStorage('cx_rcas_data', JSON.stringify(rcasData));
+
+    // 1. Primary: Save directly to Board Description (indestructible, guaranteed persistence)
+    try {
+      const curRes = await fetch(
+        `https://api.trello.com/1/boards/${CLIENT_BOARD_ID}?fields=desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+      );
+      let newDesc = '';
+      if (curRes.ok) {
+        const curBoard = await curRes.json();
+        const curDesc = curBoard?.desc || '';
+        if (curDesc.includes('<!-- PORTAL_CONFIG_START -->')) {
+          newDesc = curDesc.replace(
+            /<!-- PORTAL_CONFIG_START -->[\s\S]*?<!-- PORTAL_CONFIG_END -->/,
+            `<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`
+          );
+        } else {
+          newDesc = `### ⚙️ PORTAL CX - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->\n\n${curDesc}`.trim();
+        }
+      } else {
+        newDesc = `### ⚙️ PORTAL CX - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`;
+      }
+
+      await fetch(
+        `https://api.trello.com/1/boards/${CLIENT_BOARD_ID}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ desc: newDesc }),
+        }
+      );
+    } catch (errBoard) {
+      console.warn('Aviso: Falha ao salvar no board.desc:', errBoard);
+    }
+
+    // 2. Secondary: Backup to card in EXEMPLOS list
+    let targetCardId = configCardIdDirect;
+    if (!targetCardId) {
+      try {
+        const listRes = await fetch(
+          `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+        );
+        if (listRes.ok) {
+          const cards = await listRes.json();
+          const found = Array.isArray(cards) ? cards.find((c: any) => c.name.includes('[SISTEMA] Configurações de Equipes')) : null;
+          if (found) targetCardId = found.id;
+        }
+      } catch {}
+    }
+
+    if (targetCardId) {
       try {
         const res = await fetch(
-          `https://api.trello.com/1/cards/${configCardIdDirect}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+          `https://api.trello.com/1/cards/${targetCardId}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ desc: jsonStr }),
           }
         );
-        if (res.ok) return true;
-        configCardIdDirect = '';
-      } catch {
-        configCardIdDirect = '';
-      }
+        if (res.ok) {
+          configCardIdDirect = targetCardId;
+          return true;
+        }
+      } catch {}
     }
 
-    // 2. Search in list
-    let targetCardId: string | null = null;
+    // Create backup card if not exists
     try {
-      const listRes = await fetch(
-        `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+      const createRes = await fetch(
+        `https://api.trello.com/1/cards?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idList: CONFIG_LIST_ID,
+            name: CONFIG_CARD_NAME,
+            desc: jsonStr,
+            pos: 'bottom',
+          }),
+        }
       );
-      if (listRes.ok) {
-        const cards = await listRes.json();
-        const found = Array.isArray(cards) ? cards.find((c: any) => c.name.includes('[SISTEMA] Configurações de Equipes')) : null;
-        if (found) targetCardId = found.id;
+      if (createRes.ok) {
+        const newCard = await createRes.json();
+        if (newCard?.id) configCardIdDirect = newCard.id;
+        return true;
       }
     } catch {}
 
-    if (targetCardId) {
-      configCardIdDirect = targetCardId;
-      const res = await fetch(
-        `https://api.trello.com/1/cards/${targetCardId}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ desc: jsonStr }),
-        }
-      );
-      if (res.ok) return true;
-    }
-
-    // 3. Create if missing
-    const createRes = await fetch(
-      `https://api.trello.com/1/cards?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          idList: CONFIG_LIST_ID,
-          name: CONFIG_CARD_NAME,
-          desc: jsonStr,
-          pos: 'bottom',
-        }),
-      }
-    );
-    if (createRes.ok) {
-      const newCard = await createRes.json();
-      if (newCard?.id) configCardIdDirect = newCard.id;
-      return true;
-    }
+    return true;
   } catch (err) {
-    console.warn('Falha ao salvar config card diretamente no Trello:', err);
+    console.warn('Falha geral em savePortalConfigToTrelloDirect:', err);
   }
   return false;
 }
 
 export async function fetchRCAs(): Promise<Record<TeamName, string[]>> {
-  // 1. Tenta pelo backend proxy
+  // 1. Tenta buscar direto na nuvem do Trello (Board Descrição - fonte persistente)
+  try {
+    const cloud = await fetchPortalConfigFromTrelloDirect();
+    if (cloud?.rcas && Object.keys(cloud.rcas).length > 0) {
+      safeSetStorage('cx_rcas_data', JSON.stringify(cloud.rcas));
+      if (Array.isArray(cloud.teams) && cloud.teams.length > 0) {
+        safeSetStorage('cx_teams_data', JSON.stringify(cloud.teams));
+      }
+      return cloud.rcas;
+    }
+  } catch (err) {
+    console.warn('Falha ao carregar RCAs direto do Trello:', err);
+  }
+
+  // 2. Tenta pelo backend proxy
   try {
     const res = await fetch('/api/rcas');
     if (res.ok) {
       const data = await res.json();
       if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        safeSetStorage('cx_rcas_data', JSON.stringify(data));
         return data;
       }
     }
   } catch {}
 
-  // 2. Tenta diretamente no card do Trello
-  const cloud = await fetchPortalConfigFromTrelloDirect();
-  if (cloud?.rcas && Object.keys(cloud.rcas).length > 0) {
-    return cloud.rcas;
-  }
-
   // 3. Fallback do localStorage
   try {
-    const raw = localStorage.getItem('cx_rcas_data');
+    const raw = safeGetStorage('cx_rcas_data');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') return parsed;
@@ -428,7 +496,7 @@ export async function addRCAApi(team: TeamName, name: string): Promise<Record<Te
   // Obter estado atual do localStorage
   let current: Record<string, string[]> = {};
   try {
-    const raw = localStorage.getItem('cx_rcas_data');
+    const raw = safeGetStorage('cx_rcas_data');
     if (raw) current = JSON.parse(raw);
   } catch {}
 
@@ -439,7 +507,7 @@ export async function addRCAApi(team: TeamName, name: string): Promise<Record<Te
     list.sort();
   }
   current[key] = list;
-  localStorage.setItem('cx_rcas_data', JSON.stringify(current));
+  safeSetStorage('cx_rcas_data', JSON.stringify(current));
 
   // 1. Tenta POST /api/rcas
   try {
@@ -480,7 +548,7 @@ export async function renameRCAApi(team: TeamName, oldName: string, newName: str
 
   let current: Record<string, string[]> = {};
   try {
-    const raw = localStorage.getItem('cx_rcas_data');
+    const raw = safeGetStorage('cx_rcas_data');
     if (raw) current = JSON.parse(raw);
   } catch {}
 
@@ -488,7 +556,7 @@ export async function renameRCAApi(team: TeamName, oldName: string, newName: str
   const list = (current[key] || []).map((n) => (n.trim().toUpperCase() === cleanOld ? cleanNew : n));
   list.sort();
   current[key] = list;
-  localStorage.setItem('cx_rcas_data', JSON.stringify(current));
+  safeSetStorage('cx_rcas_data', JSON.stringify(current));
 
   // 1. Tenta PUT /api/rcas
   try {
@@ -528,14 +596,14 @@ export async function removeRCAApi(team: TeamName, name: string): Promise<Record
 
   let current: Record<string, string[]> = {};
   try {
-    const raw = localStorage.getItem('cx_rcas_data');
+    const raw = safeGetStorage('cx_rcas_data');
     if (raw) current = JSON.parse(raw);
   } catch {}
 
   const key = Object.keys(current).find((k) => k.toLowerCase() === team.trim().toLowerCase()) || team.trim();
   const list = (current[key] || []).filter((n) => n.trim().toUpperCase() !== cleanTarget);
   current[key] = list;
-  localStorage.setItem('cx_rcas_data', JSON.stringify(current));
+  safeSetStorage('cx_rcas_data', JSON.stringify(current));
 
   // 1. Tenta DELETE /api/rcas
   try {
@@ -572,26 +640,35 @@ export async function removeRCAApi(team: TeamName, name: string): Promise<Record
 
 // Teams API
 export async function fetchTeams(): Promise<TeamInfo[]> {
-  // 1. Tenta backend proxy
+  // 1. Tenta buscar direto na nuvem do Trello (Board Descrição - fonte persistente em tempo real)
+  try {
+    const cloud = await fetchPortalConfigFromTrelloDirect();
+    if (Array.isArray(cloud?.teams) && cloud.teams.length > 0) {
+      safeSetStorage('cx_teams_data', JSON.stringify(cloud.teams));
+      if (cloud.rcas && Object.keys(cloud.rcas).length > 0) {
+        safeSetStorage('cx_rcas_data', JSON.stringify(cloud.rcas));
+      }
+      return cloud.teams;
+    }
+  } catch (err) {
+    console.warn('Falha ao carregar equipes direto do Trello:', err);
+  }
+
+  // 2. Tenta backend proxy
   try {
     const res = await fetch('/api/teams');
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
+        safeSetStorage('cx_teams_data', JSON.stringify(data));
         return data;
       }
     }
   } catch {}
 
-  // 2. Tenta diretamente no card do Trello
-  const cloud = await fetchPortalConfigFromTrelloDirect();
-  if (Array.isArray(cloud?.teams) && cloud.teams.length > 0) {
-    return cloud.teams;
-  }
-
   // 3. Fallback do localStorage
   try {
-    const raw = localStorage.getItem('cx_teams_data');
+    const raw = safeGetStorage('cx_teams_data');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -622,12 +699,12 @@ export async function addTeamApi(
   // 2. Fallback direto no client
   let teams: TeamInfo[] = [];
   try {
-    const raw = localStorage.getItem('cx_teams_data');
+    const raw = safeGetStorage('cx_teams_data');
     if (raw) teams = JSON.parse(raw);
   } catch {}
   let rcas: Record<string, string[]> = {};
   try {
-    const rawR = localStorage.getItem('cx_rcas_data');
+    const rawR = safeGetStorage('cx_rcas_data');
     if (rawR) rcas = JSON.parse(rawR);
   } catch {}
 
@@ -636,8 +713,8 @@ export async function addTeamApi(
   teams.push({ id, nome: cleanName, emoji: emoji || '⚡' });
   if (!rcas[cleanName]) rcas[cleanName] = [];
 
-  localStorage.setItem('cx_teams_data', JSON.stringify(teams));
-  localStorage.setItem('cx_rcas_data', JSON.stringify(rcas));
+  safeSetStorage('cx_teams_data', JSON.stringify(teams));
+  safeSetStorage('cx_rcas_data', JSON.stringify(rcas));
   await savePortalConfigToTrelloDirect({ teams, rcas });
 
   return { teams, rcas };
@@ -657,8 +734,8 @@ export async function updateTeamApi(
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.teams)) {
-        localStorage.setItem('cx_teams_data', JSON.stringify(data.teams));
-        if (data.rcas) localStorage.setItem('cx_rcas_data', JSON.stringify(data.rcas));
+        safeSetStorage('cx_teams_data', JSON.stringify(data.teams));
+        if (data.rcas) safeSetStorage('cx_rcas_data', JSON.stringify(data.rcas));
         await savePortalConfigToTrelloDirect(data).catch(() => {});
         return data;
       }
@@ -675,8 +752,8 @@ export async function updateTeamApi(
     if (resFallback.ok) {
       const data = await resFallback.json();
       if (data && Array.isArray(data.teams)) {
-        localStorage.setItem('cx_teams_data', JSON.stringify(data.teams));
-        if (data.rcas) localStorage.setItem('cx_rcas_data', JSON.stringify(data.rcas));
+        safeSetStorage('cx_teams_data', JSON.stringify(data.teams));
+        if (data.rcas) safeSetStorage('cx_rcas_data', JSON.stringify(data.rcas));
         await savePortalConfigToTrelloDirect(data).catch(() => {});
         return data;
       }
@@ -686,12 +763,12 @@ export async function updateTeamApi(
   // 3. Fallback direto no client
   let teams: TeamInfo[] = [];
   try {
-    const raw = localStorage.getItem('cx_teams_data');
+    const raw = safeGetStorage('cx_teams_data');
     if (raw) teams = JSON.parse(raw);
   } catch {}
   let rcas: Record<string, string[]> = {};
   try {
-    const rawR = localStorage.getItem('cx_rcas_data');
+    const rawR = safeGetStorage('cx_rcas_data');
     if (rawR) rcas = JSON.parse(rawR);
   } catch {}
 
@@ -713,8 +790,8 @@ export async function updateTeamApi(
     }
   }
 
-  localStorage.setItem('cx_teams_data', JSON.stringify(teams));
-  localStorage.setItem('cx_rcas_data', JSON.stringify(rcas));
+  safeSetStorage('cx_teams_data', JSON.stringify(teams));
+  safeSetStorage('cx_rcas_data', JSON.stringify(rcas));
   await savePortalConfigToTrelloDirect({ teams, rcas });
 
   return { teams, rcas };
@@ -752,17 +829,17 @@ export async function deleteTeamApi(
   // Fallback client
   let teams: TeamInfo[] = [];
   try {
-    const raw = localStorage.getItem('cx_teams_data');
+    const raw = safeGetStorage('cx_teams_data');
     if (raw) teams = JSON.parse(raw);
   } catch {}
   let rcas: Record<string, string[]> = {};
   try {
-    const rawR = localStorage.getItem('cx_rcas_data');
+    const rawR = safeGetStorage('cx_rcas_data');
     if (rawR) rcas = JSON.parse(rawR);
   } catch {}
 
   teams = teams.filter((t) => t.id !== id && t.nome.toLowerCase() !== id.toLowerCase());
-  localStorage.setItem('cx_teams_data', JSON.stringify(teams));
+  safeSetStorage('cx_teams_data', JSON.stringify(teams));
   await savePortalConfigToTrelloDirect({ teams, rcas });
 
   return { teams, rcas };
