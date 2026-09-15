@@ -362,7 +362,7 @@ export async function deleteBoardLabel(id: string) {
 }
 
 // --- PORTAL CONFIG PERSISTENCE ON TRELLO (PERMANENT STORAGE VIA BOARD DESC & CARD) ---
-const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
+const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal Trello)';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a'; // List EXEMPLOS
 let configCardIdCache: string | null = null;
 
@@ -409,16 +409,24 @@ export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rc
     }
   }
 
-  // 3. Tertiary fallback: Try finding in CONFIG_LIST_ID (EXEMPLOS list)
+  // 3. Tertiary fallback: Try finding in CONFIG_LIST_ID (EXEMPLOS list, including archived cards)
   try {
-    const listCards = await trelloFetch<{ id: string; name: string; desc: string }[]>(
+    const listCards = await trelloFetch<{ id: string; name: string; desc: string; closed?: boolean }[]>(
       `/lists/${CONFIG_LIST_ID}/cards`,
       {},
-      { fields: 'id,name,desc' }
+      { fields: 'id,name,desc,closed', filter: 'all' }
     );
     const found = listCards.find((c) => c.name.includes('[SISTEMA] Configurações de Equipes'));
     if (found) {
       configCardIdCache = found.id;
+      // Garante que o card esteja arquivado no Trello
+      if (!found.closed) {
+        trelloFetch(`/cards/${found.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ closed: true }),
+        }).catch(() => {});
+      }
       if (found.desc) {
         return JSON.parse(found.desc);
       }
@@ -450,7 +458,7 @@ export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Recor
           `<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`
         );
       } else {
-        newDesc = `### ⚙️ PORTAL CX - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->\n\n${curDesc}`.trim();
+        newDesc = `### ⚙️ PORTAL - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->\n\n${curDesc}`.trim();
       }
 
       await trelloFetch(
@@ -465,13 +473,13 @@ export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Recor
       console.warn('Aviso: Falha ao salvar no board.desc:', errBoard);
     }
 
-    // 2. Secondary: Also update or create backup card in EXEMPLOS list
+    // 2. Secondary: Also update or create backup card in EXEMPLOS list, mantendo-o sempre ARQUIVADO
     if (!configCardIdCache) {
       try {
-        const listCards = await trelloFetch<{ id: string; name: string }[]>(
+        const listCards = await trelloFetch<{ id: string; name: string; closed?: boolean }[]>(
           `/lists/${CONFIG_LIST_ID}/cards`,
           {},
-          { fields: 'id,name' }
+          { fields: 'id,name,closed', filter: 'all' }
         );
         const found = listCards.find((c) => c.name.includes('[SISTEMA] Configurações de Equipes'));
         if (found) configCardIdCache = found.id;
@@ -485,7 +493,7 @@ export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Recor
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ desc: jsonStr }),
+            body: JSON.stringify({ desc: jsonStr, closed: true }),
           }
         );
         return true;
@@ -494,7 +502,7 @@ export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Recor
       }
     }
 
-    // Create backup card if not found
+    // Create backup card already ARCHIVED (closed: true) if not found
     try {
       const newCard = await trelloFetch<{ id: string }>(`/cards`, {
         method: 'POST',
@@ -504,10 +512,17 @@ export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Recor
           name: CONFIG_CARD_NAME,
           desc: jsonStr,
           pos: 'bottom',
+          closed: true,
         }),
       });
       if (newCard && newCard.id) {
         configCardIdCache = newCard.id;
+        // Reforço explícito para arquivar imediatamente na API do Trello
+        await trelloFetch(`/cards/${newCard.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ closed: true }),
+        }).catch(() => {});
       }
     } catch {}
 

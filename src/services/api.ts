@@ -279,7 +279,7 @@ function safeSetStorage(key: string, value: string): void {
 // --- CONFIG CLOUD SYNC (TRELLO PERMANENT STORAGE VIA BOARD DESC & CARD) ---
 let configCardIdDirect = '';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a';
-const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal CX)';
+const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal Trello)';
 
 export async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]; rcas?: Record<string, string[]> } | null> {
   // 1. Primary: Fetch from Board Description (indestructible, permanent across all users and devices)
@@ -309,16 +309,27 @@ export async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: Tea
     console.warn('Falha ao ler config da descrição do quadro Trello:', err);
   }
 
-  // 2. Secondary fallback: Search card in EXEMPLOS list
+  // 2. Secondary fallback: Search card in EXEMPLOS list (including archived cards)
   try {
     const listRes = await fetch(
-      `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name,desc&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+      `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?filter=all&fields=id,name,desc,closed&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
     );
     if (listRes.ok) {
       const cards = await listRes.json();
       const found = Array.isArray(cards) ? cards.find((c: any) => c.name.includes('[SISTEMA] Configurações de Equipes')) : null;
       if (found) {
         configCardIdDirect = found.id;
+        // Se estiver aberto, arquiva imediatamente
+        if (!found.closed) {
+          fetch(
+            `https://api.trello.com/1/cards/${found.id}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+            {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ closed: true }),
+            }
+          ).catch(() => {});
+        }
         if (found.desc) return JSON.parse(found.desc);
       }
     }
@@ -372,10 +383,10 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
             `<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`
           );
         } else {
-          newDesc = `### ⚙️ PORTAL CX - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->\n\n${curDesc}`.trim();
+          newDesc = `### ⚙️ PORTAL - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->\n\n${curDesc}`.trim();
         }
       } else {
-        newDesc = `### ⚙️ PORTAL CX - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`;
+        newDesc = `### ⚙️ PORTAL - CONFIGURAÇÕES DO SISTEMA (NÃO ALTERE MANUALMENTE)\n<!-- PORTAL_CONFIG_START -->\n${jsonStr}\n<!-- PORTAL_CONFIG_END -->`;
       }
 
       await fetch(
@@ -390,12 +401,12 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
       console.warn('Aviso: Falha ao salvar no board.desc:', errBoard);
     }
 
-    // 2. Secondary: Backup to card in EXEMPLOS list
+    // 2. Secondary: Backup to card in EXEMPLOS list, mantendo-o sempre ARQUIVADO (closed: true)
     let targetCardId = configCardIdDirect;
     if (!targetCardId) {
       try {
         const listRes = await fetch(
-          `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?fields=id,name&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
+          `https://api.trello.com/1/lists/${CONFIG_LIST_ID}/cards?filter=all&fields=id,name,closed&key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`
         );
         if (listRes.ok) {
           const cards = await listRes.json();
@@ -412,7 +423,7 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ desc: jsonStr }),
+            body: JSON.stringify({ desc: jsonStr, closed: true }),
           }
         );
         if (res.ok) {
@@ -422,7 +433,7 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
       } catch {}
     }
 
-    // Create backup card if not exists
+    // Create backup card already ARCHIVED (closed: true) if not exists
     try {
       const createRes = await fetch(
         `https://api.trello.com/1/cards?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
@@ -434,13 +445,25 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
             name: CONFIG_CARD_NAME,
             desc: jsonStr,
             pos: 'bottom',
+            closed: true,
           }),
         }
       );
       if (createRes.ok) {
         const newCard = await createRes.json();
-        if (newCard?.id) configCardIdDirect = newCard.id;
-        return true;
+        if (newCard?.id) {
+          configCardIdDirect = newCard.id;
+          // Reforço explícito para garantir o status arquivado
+          await fetch(
+            `https://api.trello.com/1/cards/${newCard.id}?key=${CLIENT_TRELLO_KEY}&token=${CLIENT_TRELLO_TOKEN}`,
+            {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ closed: true }),
+            }
+          ).catch(() => {});
+          return true;
+        }
       }
     } catch {}
 
