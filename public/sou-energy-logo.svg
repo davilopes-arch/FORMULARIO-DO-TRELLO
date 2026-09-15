@@ -40,16 +40,16 @@
   <g
     font-family="'Fredoka', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif"
     font-weight="700"
-    letter-spacing="-1.5px"
+    letter-spacing="-1px"
   >
     <!-- Top Word: "sou" -->
     <text
-      x="172"
-      y="74"
-      font-size="64"
+      x="166"
+      y="72"
+      font-size="62"
       fill="#F26622"
       stroke="#FFFFFF"
-      stroke-width="7"
+      stroke-width="2.5"
       stroke-linejoin="round"
       stroke-linecap="round"
       paint-order="stroke fill"
@@ -57,28 +57,28 @@
 
     <!-- Bottom Word: "energy" -->
     <text
-      x="170"
-      y="132"
-      font-size="68"
+      x="166"
+      y="126"
+      font-size="62"
       fill="#F26622"
       stroke="#FFFFFF"
-      stroke-width="7"
+      stroke-width="2.5"
       stroke-linejoin="round"
       stroke-linecap="round"
       paint-order="stroke fill"
     >energy</text>
   </g>
 
-  <!-- Gradient Underline Bar beneath "energy" -->
+  <!-- Gradient Underline Bar beneath "energy" - thinner and aligned -->
   <rect
-    x="174"
-    y="141"
-    width="186"
-    height="10"
-    rx="5"
+    x="166"
+    y="140"
+    width="204"
+    height="4.5"
+    rx="2.25"
     fill="url(#souBarGradient)"
     stroke="#FFFFFF"
-    stroke-width="3.5"
+    stroke-width="1.5"
     stroke-linejoin="round"
     paint-order="stroke fill"
   />

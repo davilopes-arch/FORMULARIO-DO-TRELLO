@@ -116,20 +116,20 @@ export function SouEnergyLogo({
         <use href="#souBladeFull" fill="#FF4700" transform="rotate(180)" />
       </g>
 
-      {/* Tipografia "sou" e "energy" com contorno branco e preenchimento laranja */}
+      {/* Tipografia "sou" e "energy" com traço refinado, fino e alinhado */}
       <g
         fontFamily="'Fredoka', 'Nunito', 'Segoe UI', system-ui, sans-serif"
         fontWeight="700"
-        letterSpacing="-1.5px"
+        letterSpacing="-1px"
       >
-        {/* "sou" */}
+        {/* "sou" - alinhado perfeitamente em x=166 */}
         <text
-          x="172"
-          y="74"
-          fontSize="64"
+          x="166"
+          y="72"
+          fontSize="62"
           fill="#F26622"
           stroke="#FFFFFF"
-          strokeWidth="7"
+          strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
           paintOrder="stroke fill"
@@ -137,14 +137,14 @@ export function SouEnergyLogo({
           sou
         </text>
 
-        {/* "energy" */}
+        {/* "energy" - alinhado perfeitamente em x=166 */}
         <text
-          x="170"
-          y="132"
-          fontSize="68"
+          x="166"
+          y="126"
+          fontSize="62"
           fill="#F26622"
           stroke="#FFFFFF"
-          strokeWidth="7"
+          strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
           paintOrder="stroke fill"
@@ -153,16 +153,16 @@ export function SouEnergyLogo({
         </text>
       </g>
 
-      {/* Barra de Sublinhado Degradê com contorno branco */}
+      {/* Barra de Sublinhado Degradê - traço fino (4.5px), elegante e alinhado com o texto */}
       <rect
-        x="174"
-        y="141"
-        width="186"
-        height="10"
-        rx="5"
+        x="166"
+        y="140"
+        width="204"
+        height="4.5"
+        rx="2.25"
         fill="url(#souBarGradReact)"
         stroke="#FFFFFF"
-        strokeWidth="3.5"
+        strokeWidth="1.5"
         strokeLinejoin="round"
         paintOrder="stroke fill"
       />

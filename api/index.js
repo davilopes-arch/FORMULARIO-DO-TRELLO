@@ -292,8 +292,33 @@ async function deleteBoardLabel(id) {
 }
 var CONFIG_CARD_NAME = "\u2699\uFE0F [SISTEMA] Configura\xE7\xF5es de Equipes e RCAs (Portal CX)";
 var CONFIG_LIST_ID = "69713bd2d3693600213b526a";
-var configCardIdCache = "6aa85a5577311ed10018dca9";
+var configCardIdCache = null;
 async function fetchPortalConfigFromTrello() {
+  try {
+    const board = await trelloFetch(
+      `/boards/${BOARD_ID}`,
+      {},
+      { fields: "id,name,desc" }
+    );
+    if (board && board.desc) {
+      const match = board.desc.match(/<!-- PORTAL_CONFIG_START -->([\s\S]*?)<!-- PORTAL_CONFIG_END -->/);
+      if (match && match[1]) {
+        const parsed = JSON.parse(match[1]);
+        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+          return parsed;
+        }
+      }
+      try {
+        const parsed = JSON.parse(board.desc);
+        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+          return parsed;
+        }
+      } catch {
+      }
+    }
+  } catch (err) {
+    console.warn("Falha ao buscar config na descri\xE7\xE3o do quadro:", err);
+  }
   if (configCardIdCache) {
     try {
       const card = await trelloFetch(
@@ -302,8 +327,7 @@ async function fetchPortalConfigFromTrello() {
         { fields: "id,name,desc" }
       );
       if (card && card.desc) {
-        const parsed = JSON.parse(card.desc);
-        return parsed;
+        return JSON.parse(card.desc);
       }
     } catch {
       configCardIdCache = null;
@@ -329,7 +353,42 @@ async function fetchPortalConfigFromTrello() {
 }
 async function savePortalConfigToTrello(data) {
   try {
-    const jsonStr = JSON.stringify(data, null, 2);
+    const payload = {
+      teams: data.teams,
+      rcas: data.rcas,
+      lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const jsonStr = JSON.stringify(payload, null, 2);
+    try {
+      const curBoard = await trelloFetch(`/boards/${BOARD_ID}`, {}, { fields: "desc" }).catch(() => null);
+      const curDesc = curBoard?.desc || "";
+      let newDesc = "";
+      if (curDesc.includes("<!-- PORTAL_CONFIG_START -->")) {
+        newDesc = curDesc.replace(
+          /<!-- PORTAL_CONFIG_START -->[\s\S]*?<!-- PORTAL_CONFIG_END -->/,
+          `<!-- PORTAL_CONFIG_START -->
+${jsonStr}
+<!-- PORTAL_CONFIG_END -->`
+        );
+      } else {
+        newDesc = `### \u2699\uFE0F PORTAL CX - CONFIGURA\xC7\xD5ES DO SISTEMA (N\xC3O ALTERE MANUALMENTE)
+<!-- PORTAL_CONFIG_START -->
+${jsonStr}
+<!-- PORTAL_CONFIG_END -->
+
+${curDesc}`.trim();
+      }
+      await trelloFetch(
+        `/boards/${BOARD_ID}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ desc: newDesc })
+        }
+      );
+    } catch (errBoard) {
+      console.warn("Aviso: Falha ao salvar no board.desc:", errBoard);
+    }
     if (!configCardIdCache) {
       try {
         const listCards = await trelloFetch(
@@ -357,20 +416,23 @@ async function savePortalConfigToTrello(data) {
         configCardIdCache = null;
       }
     }
-    const newCard = await trelloFetch(`/cards`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        idList: CONFIG_LIST_ID,
-        name: CONFIG_CARD_NAME,
-        desc: jsonStr,
-        pos: "bottom"
-      })
-    });
-    if (newCard && newCard.id) {
-      configCardIdCache = newCard.id;
-      return true;
+    try {
+      const newCard = await trelloFetch(`/cards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idList: CONFIG_LIST_ID,
+          name: CONFIG_CARD_NAME,
+          desc: jsonStr,
+          pos: "bottom"
+        })
+      });
+      if (newCard && newCard.id) {
+        configCardIdCache = newCard.id;
+      }
+    } catch {
     }
+    return true;
   } catch (err) {
     console.error("Erro ao salvar configura\xE7\xF5es no Trello:", err);
   }
@@ -591,6 +653,8 @@ function getTeams() {
   return currentTeams;
 }
 async function addTeam(nome, emoji) {
+  await syncWithTrelloCloud().catch(() => {
+  });
   const cleanName = nome.trim();
   const cleanEmoji = emoji.trim() || "\u26A1";
   if (!cleanName) return { success: false, error: "Nome da equipe \xE9 obrigat\xF3rio" };
@@ -606,6 +670,8 @@ async function addTeam(nome, emoji) {
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 async function updateTeam(id, updates) {
+  await syncWithTrelloCloud().catch(() => {
+  });
   const team = currentTeams.find((t) => t.id === id || t.nome.toLowerCase() === id.toLowerCase());
   if (!team) return { success: false, error: "Equipe n\xE3o encontrada" };
   const oldNome = team.nome;
@@ -636,6 +702,8 @@ async function updateTeam(id, updates) {
   return { success: true, teams: currentTeams, rcas: currentRCAs };
 }
 async function removeTeam(id) {
+  await syncWithTrelloCloud().catch(() => {
+  });
   if (currentTeams.length <= 1) {
     return { success: false, error: "\xC9 necess\xE1rio manter pelo menos uma equipe" };
   }
@@ -666,6 +734,8 @@ function getRCAs() {
   return currentRCAs;
 }
 async function addRCA(team, name) {
+  await syncWithTrelloCloud().catch(() => {
+  });
   const cleanName = name.trim().toUpperCase();
   if (!cleanName) return { success: false, error: "Nome inv\xE1lido" };
   const key = resolveTeamKey(team);
@@ -679,6 +749,8 @@ async function addRCA(team, name) {
   return { success: true };
 }
 async function renameRCA(team, oldName, newName) {
+  await syncWithTrelloCloud().catch(() => {
+  });
   const cleanOld = oldName.trim().toUpperCase();
   const cleanNew = newName.trim().toUpperCase();
   if (!cleanNew) return { success: false, error: "Novo nome inv\xE1lido" };
@@ -698,6 +770,8 @@ async function renameRCA(team, oldName, newName) {
   return { success: true };
 }
 async function removeRCA(team, name) {
+  await syncWithTrelloCloud().catch(() => {
+  });
   const key = resolveTeamKey(team);
   const cleanTarget = name.trim().toUpperCase();
   const list = currentRCAs[key] || [];
@@ -714,7 +788,7 @@ var apiRouter = express.Router();
 apiRouter.get("/health", (req, res) => {
   res.json({
     status: "ok",
-    service: "Portal Trello CX Backend",
+    service: "Portal Trello Backend",
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 });

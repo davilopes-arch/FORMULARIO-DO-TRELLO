@@ -34,7 +34,7 @@ const apiRouter = express.Router();
 apiRouter.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'Portal Trello CX Backend',
+    service: 'Portal Trello Backend',
     timestamp: new Date().toISOString(),
   });
 });
