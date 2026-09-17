@@ -30,7 +30,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
     <div className="py-8">
       <div className="login-box">
         <div className="flex justify-center mb-5">
-          <SouEnergyLogo height={48} />
+          <SouEnergyLogo height={56} />
         </div>
         <h2>Identificação</h2>
         <p>

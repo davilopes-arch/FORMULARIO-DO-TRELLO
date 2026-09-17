@@ -1,7 +1,6 @@
 import React from 'react';
-import { ExternalLink, CheckCircle2, Copy, Check, MessageSquare, Plus, ArrowLeft } from 'lucide-react';
+import { ExternalLink, CheckCircle2, Copy, Check, MessageSquare, Plus, ArrowLeft, Zap } from 'lucide-react';
 import { FormType, CardSummaryData } from '../types';
-import { SouEnergyLogo } from './SouEnergyLogo';
 
 interface SuccessModalProps {
   isOpen: boolean;
@@ -91,7 +90,7 @@ export function SuccessModal({
           </div>
 
           <div className="flex items-center gap-1.5 mb-2 bg-white/20 px-2.5 py-1 rounded-full border border-white/30">
-            <SouEnergyLogo variant="symbol" height={16} />
+            <Zap className="w-3.5 h-3.5 text-white fill-white" />
             <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-white">
               {meta.badgeText}
             </span>

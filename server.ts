@@ -6,6 +6,9 @@ import app from './server/app.ts';
 async function startServer() {
   const PORT = 3000;
 
+  // --- STATIC ASSETS FROM PUBLIC ---
+  app.use(express.static(path.join(process.cwd(), 'public')));
+
   // --- VITE MIDDLEWARE / STATIC ASSETS ---
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
