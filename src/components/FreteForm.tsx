@@ -143,7 +143,8 @@ export function FreteForm({
             placeholder="Ex: Cotação Frete – Cliente João Silva"
             value={formData.nome}
             onChange={(e) => {
-              setFormData({ ...formData, nome: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, nome: val }));
               clearError('nome');
             }}
           />
@@ -226,7 +227,7 @@ export function FreteForm({
               className={`toggle-opt ${formData.origem === 'MATRIZ' ? 'sel' : ''}`}
               id="ftog-matriz"
               onClick={() => {
-                setFormData({ ...formData, origem: 'MATRIZ' });
+                setFormData((prev) => ({ ...prev, origem: 'MATRIZ' }));
                 clearError('origem');
               }}
             >
@@ -237,7 +238,7 @@ export function FreteForm({
               className={`toggle-opt ${formData.origem === 'FILIAL' ? 'sel' : ''}`}
               id="ftog-filial"
               onClick={() => {
-                setFormData({ ...formData, origem: 'FILIAL' });
+                setFormData((prev) => ({ ...prev, origem: 'FILIAL' }));
                 clearError('origem');
               }}
             >
@@ -262,7 +263,8 @@ export function FreteForm({
             placeholder="Ex: CLI-00123"
             value={formData.idCliente}
             onChange={(e) => {
-              setFormData({ ...formData, idCliente: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, idCliente: val }));
               clearError('idCliente');
             }}
           />
@@ -301,7 +303,10 @@ export function FreteForm({
             id="fi-link"
             placeholder="https://..."
             value={formData.linkOrcamento}
-            onChange={(e) => setFormData({ ...formData, linkOrcamento: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, linkOrcamento: val }));
+            }}
           />
         </div>
 
@@ -317,7 +322,10 @@ export function FreteForm({
             placeholder="Informações adicionais sobre o frete..."
             maxLength={3000}
             value={formData.observacoes}
-            onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, observacoes: val }));
+            }}
           />
         </div>
 
@@ -325,7 +333,7 @@ export function FreteForm({
         <AnexoUpload
           idPrefix="fanexo"
           anexos={formData.anexos}
-          onChange={(anexos) => setFormData({ ...formData, anexos })}
+          onChange={(anexos) => setFormData((prev) => ({ ...prev, anexos }))}
         />
       </div>
 

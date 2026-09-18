@@ -22,6 +22,12 @@ export function AnexoUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropAreaRef = useRef<HTMLDivElement>(null);
 
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const anexosRef = useRef(anexos);
+  anexosRef.current = anexos;
+
   const readFileAsDataUrl = (file: File): Promise<AttachmentItem> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -46,7 +52,8 @@ export function AnexoUpload({
       return;
     }
 
-    const availableSlots = maxFiles - anexos.length;
+    const currentAnexos = anexosRef.current;
+    const availableSlots = maxFiles - currentAnexos.length;
     if (availableSlots <= 0) {
       alert(`Limite de ${maxFiles} imagens já atingido.`);
       return;
@@ -68,7 +75,7 @@ export function AnexoUpload({
       setUploadProgress(100);
 
       setTimeout(() => {
-        onChange([...anexos, ...newItems]);
+        onChangeRef.current([...anexosRef.current, ...newItems]);
         setUploadProgress(null);
       }, 250);
 
@@ -146,8 +153,8 @@ export function AnexoUpload({
   };
 
   const handleRemove = (index: number) => {
-    const updated = anexos.filter((_, i) => i !== index);
-    onChange(updated);
+    const updated = anexosRef.current.filter((_, i) => i !== index);
+    onChangeRef.current(updated);
   };
 
   const formatFileSize = (bytes?: number) => {

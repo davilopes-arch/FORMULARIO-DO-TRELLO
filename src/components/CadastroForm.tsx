@@ -165,7 +165,8 @@ export function CadastroForm({
             placeholder="Ex: Cadastro – João Silva"
             value={formData.titulo}
             onChange={(e) => {
-              setFormData({ ...formData, titulo: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, titulo: val }));
               clearError('titulo');
             }}
           />
@@ -248,7 +249,7 @@ export function CadastroForm({
               className={`toggle-opt ${formData.origem === 'MATRIZ' ? 'sel' : ''}`}
               id="ctog-matriz"
               onClick={() => {
-                setFormData({ ...formData, origem: 'MATRIZ' });
+                setFormData((prev) => ({ ...prev, origem: 'MATRIZ' }));
                 clearError('origem');
               }}
             >
@@ -259,7 +260,7 @@ export function CadastroForm({
               className={`toggle-opt ${formData.origem === 'FILIAL' ? 'sel' : ''}`}
               id="ctog-filial"
               onClick={() => {
-                setFormData({ ...formData, origem: 'FILIAL' });
+                setFormData((prev) => ({ ...prev, origem: 'FILIAL' }));
                 clearError('origem');
               }}
             >
@@ -284,7 +285,8 @@ export function CadastroForm({
             placeholder="Ex: João Silva"
             value={formData.nomeCliente}
             onChange={(e) => {
-              setFormData({ ...formData, nomeCliente: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, nomeCliente: val }));
               clearError('nomeCliente');
             }}
           />
@@ -351,7 +353,10 @@ export function CadastroForm({
             id="ci-idint"
             placeholder="Ex: INT-00123"
             value={formData.idIntegrador}
-            onChange={(e) => setFormData({ ...formData, idIntegrador: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, idIntegrador: val }));
+            }}
           />
         </div>
 
@@ -367,7 +372,10 @@ export function CadastroForm({
             placeholder="Informações adicionais sobre o cadastro..."
             maxLength={3000}
             value={formData.observacoes}
-            onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, observacoes: val }));
+            }}
           />
         </div>
 
@@ -375,7 +383,7 @@ export function CadastroForm({
         <AnexoUpload
           idPrefix="canexo"
           anexos={formData.anexos}
-          onChange={(anexos) => setFormData({ ...formData, anexos })}
+          onChange={(anexos) => setFormData((prev) => ({ ...prev, anexos }))}
         />
       </div>
 

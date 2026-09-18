@@ -177,7 +177,8 @@ export function DemandasForm({
             placeholder="Ex: João Silva – Pedido #12345 com atraso na entrega"
             value={formData.nome}
             onChange={(e) => {
-              setFormData({ ...formData, nome: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, nome: val }));
               clearError('nome');
             }}
           />
@@ -260,7 +261,7 @@ export function DemandasForm({
               className={`toggle-opt ${formData.origem === 'MATRIZ' ? 'sel' : ''}`}
               id="tog-matriz"
               onClick={() => {
-                setFormData({ ...formData, origem: 'MATRIZ' });
+                setFormData((prev) => ({ ...prev, origem: 'MATRIZ' }));
                 clearError('origem');
               }}
             >
@@ -271,7 +272,7 @@ export function DemandasForm({
               className={`toggle-opt ${formData.origem === 'FILIAL' ? 'sel' : ''}`}
               id="tog-filial"
               onClick={() => {
-                setFormData({ ...formData, origem: 'FILIAL' });
+                setFormData((prev) => ({ ...prev, origem: 'FILIAL' }));
                 clearError('origem');
               }}
             >
@@ -294,7 +295,10 @@ export function DemandasForm({
             id="i-prot"
             placeholder="Ex: PROT-2024-00456"
             value={formData.protocolo}
-            onChange={(e) => setFormData({ ...formData, protocolo: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, protocolo: val }));
+            }}
           />
         </div>
 
@@ -312,7 +316,8 @@ export function DemandasForm({
             placeholder="Ex: 98765"
             value={formData.pedido}
             onChange={(e) => {
-              setFormData({ ...formData, pedido: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, pedido: val }));
               clearError('pedido');
             }}
           />
@@ -334,7 +339,8 @@ export function DemandasForm({
             placeholder="Ex: INT-00123"
             value={formData.idint}
             onChange={(e) => {
-              setFormData({ ...formData, idint: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, idint: val }));
               clearError('idint');
             }}
           />
@@ -353,7 +359,10 @@ export function DemandasForm({
             id="i-nff"
             placeholder="Número da NF Futura"
             value={formData.nfFutura}
-            onChange={(e) => setFormData({ ...formData, nfFutura: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, nfFutura: val }));
+            }}
           />
         </div>
 
@@ -369,7 +378,10 @@ export function DemandasForm({
             id="i-nfs"
             placeholder="Número da NF de Saída"
             value={formData.nfSaida}
-            onChange={(e) => setFormData({ ...formData, nfSaida: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, nfSaida: val }));
+            }}
           />
         </div>
 
@@ -385,7 +397,10 @@ export function DemandasForm({
             id="i-transp"
             placeholder="Nome da transportadora"
             value={formData.transportadora}
-            onChange={(e) => setFormData({ ...formData, transportadora: e.target.value })}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, transportadora: val }));
+            }}
           />
         </div>
 
@@ -436,7 +451,8 @@ export function DemandasForm({
             maxLength={4000}
             value={formData.descricao}
             onChange={(e) => {
-              setFormData({ ...formData, descricao: e.target.value });
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, descricao: val }));
               clearError('descricao');
             }}
           />
@@ -461,7 +477,7 @@ export function DemandasForm({
         <AnexoUpload
           idPrefix="danexo"
           anexos={formData.anexos}
-          onChange={(anexos) => setFormData({ ...formData, anexos })}
+          onChange={(anexos) => setFormData((prev) => ({ ...prev, anexos }))}
         />
       </div>
 
