@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, CheckCircle2, Copy, Check, MessageSquare, Plus, ArrowLeft, Zap } from 'lucide-react';
+import { ExternalLink, CheckCircle2, Copy, Check, MessageSquare, Plus, ArrowLeft } from 'lucide-react';
 import { FormType, CardSummaryData } from '../types';
 
 interface SuccessModalProps {
@@ -32,14 +32,12 @@ export function SuccessModal({
           title: 'Cotação de Frete Criada!',
           desc: 'Seu card foi registrado na lista de cotação com sucesso.',
           accentBg: 'bg-amber-500/10 text-amber-600 border-amber-200',
-          badgeText: '🚚 LOGÍSTICA & FRETE',
         };
       case 'cadastro':
         return {
           title: 'Solicitação de Cadastro Criada!',
           desc: 'Seu card foi adicionado na lista de cadastros para aprovação.',
           accentBg: 'bg-sky-500/10 text-sky-600 border-sky-200',
-          badgeText: '📋 CADASTRO & FINANCEIRO',
         };
       case 'demandas':
       default:
@@ -47,7 +45,6 @@ export function SuccessModal({
           title: 'Demanda Registrada no Trello!',
           desc: 'O card foi criado na lista A FAZER e já está disponível para o time.',
           accentBg: 'bg-orange-500/10 text-orange-600 border-orange-200',
-          badgeText: '⚡ ATENDIMENTO CX',
         };
     }
   };
@@ -87,13 +84,6 @@ export function SuccessModal({
         <div className="relative bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 p-6 text-white text-center flex flex-col items-center">
           <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mb-3 shadow-inner border border-white/30 animate-bounce">
             <CheckCircle2 className="w-8 h-8 text-white stroke-[2.5]" />
-          </div>
-
-          <div className="flex items-center gap-1.5 mb-2 bg-white/20 px-2.5 py-1 rounded-full border border-white/30">
-            <Zap className="w-3.5 h-3.5 text-white fill-white" />
-            <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-white">
-              {meta.badgeText}
-            </span>
           </div>
 
           <h3 className="text-xl font-black tracking-tight text-white m-0">
