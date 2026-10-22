@@ -3,6 +3,7 @@ import {
   CardCreateResult,
   TeamInfo,
   TeamName,
+  OrigemOption,
 } from '../types';
 import { CreateCardPayload } from '../../server/trelloService';
 import { FALLBACK_BOARD_DATA } from '../data/defaultBoardData';
@@ -281,7 +282,11 @@ let configCardIdDirect = '';
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a';
 const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Portal Trello)';
 
-export async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: TeamInfo[]; rcas?: Record<string, string[]> } | null> {
+export async function fetchPortalConfigFromTrelloDirect(): Promise<{
+  teams?: TeamInfo[];
+  rcas?: Record<string, string[]>;
+  origens?: OrigemOption[];
+} | null> {
   // 1. Primary: Fetch from Board Description (indestructible, permanent across all users and devices)
   try {
     const res = await fetch(
@@ -293,13 +298,13 @@ export async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: Tea
         const match = board.desc.match(/<!-- PORTAL_CONFIG_START -->([\s\S]*?)<!-- PORTAL_CONFIG_END -->/);
         if (match && match[1]) {
           const parsed = JSON.parse(match[1]);
-          if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+          if (parsed && (Array.isArray(parsed.teams) || parsed.rcas || Array.isArray(parsed.origens))) {
             return parsed;
           }
         }
         try {
           const parsed = JSON.parse(board.desc);
-          if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+          if (parsed && (Array.isArray(parsed.teams) || parsed.rcas || Array.isArray(parsed.origens))) {
             return parsed;
           }
         } catch {}
@@ -339,7 +344,11 @@ export async function fetchPortalConfigFromTrelloDirect(): Promise<{ teams?: Tea
   return null;
 }
 
-export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[]; rcas?: Record<string, string[]> }): Promise<boolean> {
+export async function savePortalConfigToTrelloDirect(data: {
+  teams?: TeamInfo[];
+  rcas?: Record<string, string[]>;
+  origens?: OrigemOption[];
+}): Promise<boolean> {
   try {
     let teamsData = data.teams;
     if (!teamsData) {
@@ -357,9 +366,18 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
       } catch {}
     }
 
+    let origensData = data.origens;
+    if (!origensData) {
+      try {
+        const localOrig = safeGetStorage('cx_origens_data');
+        if (localOrig) origensData = JSON.parse(localOrig);
+      } catch {}
+    }
+
     const payload = {
       teams: teamsData,
       rcas: rcasData,
+      origens: origensData,
       lastUpdated: new Date().toISOString(),
     };
     const jsonStr = JSON.stringify(payload, null, 2);
@@ -367,6 +385,7 @@ export async function savePortalConfigToTrelloDirect(data: { teams?: TeamInfo[];
     // Keep localStorage immediately in sync
     if (teamsData) safeSetStorage('cx_teams_data', JSON.stringify(teamsData));
     if (rcasData) safeSetStorage('cx_rcas_data', JSON.stringify(rcasData));
+    if (origensData) safeSetStorage('cx_origens_data', JSON.stringify(origensData));
 
     // 1. Primary: Save directly to Board Description (indestructible, guaranteed persistence)
     try {
@@ -881,4 +900,191 @@ export async function resetTeamsApi(): Promise<{ teams: TeamInfo[]; rcas: Record
   } catch {}
 
   return { teams: [], rcas: {} };
+}
+
+export async function fetchOrigens(): Promise<OrigemOption[]> {
+  // 1. Tenta buscar direto na nuvem do Trello (Board Descrição - fonte persistente)
+  try {
+    const cloud = await fetchPortalConfigFromTrelloDirect();
+    if (cloud && Array.isArray(cloud.origens) && cloud.origens.length > 0) {
+      safeSetStorage('cx_origens_data', JSON.stringify(cloud.origens));
+      return cloud.origens;
+    }
+  } catch {}
+
+  // 2. Tenta GET /api/origens
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch('/api/origens', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        safeSetStorage('cx_origens_data', JSON.stringify(data));
+        return data;
+      }
+    }
+  } catch {}
+
+  // 3. Fallback localStorage
+  try {
+    const raw = safeGetStorage('cx_origens_data');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
+  return [
+    { id: 'matriz', nome: 'Matriz', emoji: '🏢' },
+    { id: 'filial', nome: 'Filial', emoji: '🏬' },
+  ];
+}
+
+export async function addOrigemApi(
+  nome: string,
+  emoji: string
+): Promise<{ origens: OrigemOption[] }> {
+  const cleanNome = nome.trim();
+  const cleanEmoji = emoji.trim() || '🏢';
+  const id = cleanNome.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+
+  // 1. Tenta POST /api/origens
+  try {
+    const res = await fetch('/api/origens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome: cleanNome, emoji: cleanEmoji }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.origens)) {
+        safeSetStorage('cx_origens_data', JSON.stringify(data.origens));
+        savePortalConfigToTrelloDirect({ origens: data.origens }).catch(() => {});
+        return data;
+      }
+    }
+  } catch {}
+
+  // 2. Fallback client
+  let origens: OrigemOption[] = [];
+  try {
+    const raw = safeGetStorage('cx_origens_data');
+    if (raw) origens = JSON.parse(raw);
+  } catch {}
+
+  if (origens.length === 0) {
+    origens = [
+      { id: 'matriz', nome: 'Matriz', emoji: '🏢' },
+      { id: 'filial', nome: 'Filial', emoji: '🏬' },
+    ];
+  }
+
+  origens.push({ id, nome: cleanNome, emoji: cleanEmoji });
+  safeSetStorage('cx_origens_data', JSON.stringify(origens));
+  await savePortalConfigToTrelloDirect({ origens });
+
+  return { origens };
+}
+
+export async function updateOrigemApi(
+  id: string,
+  updates: { nome?: string; emoji?: string }
+): Promise<{ origens: OrigemOption[] }> {
+  // 1. Tenta PUT /api/origens/:id
+  try {
+    const res = await fetch(`/api/origens/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...updates, id }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.origens)) {
+        safeSetStorage('cx_origens_data', JSON.stringify(data.origens));
+        savePortalConfigToTrelloDirect({ origens: data.origens }).catch(() => {});
+        return data;
+      }
+    }
+  } catch {}
+
+  // 2. Fallback client
+  let origens: OrigemOption[] = [];
+  try {
+    const raw = safeGetStorage('cx_origens_data');
+    if (raw) origens = JSON.parse(raw);
+  } catch {}
+
+  const cleanName = updates.nome?.trim();
+  const cleanEmoji = updates.emoji?.trim();
+
+  const idx = origens.findIndex((o) => o.id === id || o.nome.toLowerCase() === id.toLowerCase());
+  if (idx !== -1) {
+    origens[idx] = {
+      ...origens[idx],
+      nome: cleanName || origens[idx].nome,
+      emoji: cleanEmoji || origens[idx].emoji,
+    };
+  }
+
+  safeSetStorage('cx_origens_data', JSON.stringify(origens));
+  await savePortalConfigToTrelloDirect({ origens });
+
+  return { origens };
+}
+
+export async function deleteOrigemApi(
+  id: string
+): Promise<{ origens: OrigemOption[] }> {
+  try {
+    const res = await fetch(`/api/origens/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.origens)) {
+        safeSetStorage('cx_origens_data', JSON.stringify(data.origens));
+        savePortalConfigToTrelloDirect({ origens: data.origens }).catch(() => {});
+        return data;
+      }
+    }
+  } catch {}
+
+  // Fallback client
+  let origens: OrigemOption[] = [];
+  try {
+    const raw = safeGetStorage('cx_origens_data');
+    if (raw) origens = JSON.parse(raw);
+  } catch {}
+
+  origens = origens.filter((o) => o.id !== id && o.nome.toLowerCase() !== id.toLowerCase());
+  safeSetStorage('cx_origens_data', JSON.stringify(origens));
+  await savePortalConfigToTrelloDirect({ origens });
+
+  return { origens };
+}
+
+export async function resetOrigensApi(): Promise<{ origens: OrigemOption[] }> {
+  const defaults: OrigemOption[] = [
+    { id: 'matriz', nome: 'Matriz', emoji: '🏢' },
+    { id: 'filial', nome: 'Filial', emoji: '🏬' },
+  ];
+  try {
+    const res = await fetch('/api/origens/reset', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.origens)) {
+        safeSetStorage('cx_origens_data', JSON.stringify(data.origens));
+        savePortalConfigToTrelloDirect({ origens: data.origens }).catch(() => {});
+        return data;
+      }
+    }
+  } catch {}
+
+  safeSetStorage('cx_origens_data', JSON.stringify(defaults));
+  await savePortalConfigToTrelloDirect({ origens: defaults });
+  return { origens: defaults };
 }

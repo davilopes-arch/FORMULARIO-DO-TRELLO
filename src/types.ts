@@ -34,6 +34,12 @@ export interface BoardDataResponse {
   defaultListCadastroId: string;
 }
 
+export interface OrigemOption {
+  id: string;
+  nome: string;
+  emoji: string;
+}
+
 export interface AttachmentItem {
   id?: string;
   name: string;
@@ -47,7 +53,7 @@ export interface DemandasFormData {
   rca: RCAInfo | null;
   idint: string;
   protocolo: string;
-  origem: 'MATRIZ' | 'FILIAL' | null;
+  origem: string | null;
   pedido: string;
   nfFutura: string;
   nfSaida: string;
@@ -61,7 +67,7 @@ export interface FreteFormData {
   nome: string;
   equipe: TeamInfo | null;
   rca: RCAInfo | null;
-  origem: 'MATRIZ' | 'FILIAL' | null;
+  origem: string | null;
   idCliente: string;
   cep: string;
   linkOrcamento: string;
@@ -73,7 +79,7 @@ export interface CadastroFormData {
   titulo: string;
   equipe: TeamInfo | null;
   rca: RCAInfo | null;
-  origem: 'MATRIZ' | 'FILIAL' | null;
+  origem: string | null;
   nomeCliente: string;
   cpfCnpj: string;
   idIntegrador: string;

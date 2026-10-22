@@ -1,4 +1,4 @@
-import { TeamInfo, TeamName } from '../types';
+import { TeamInfo, TeamName, OrigemOption } from '../types';
 
 export const ADMIN_EMAIL = 'davi.lopes@souenergy.com.br';
 
@@ -11,6 +11,11 @@ export const DEFAULT_TEAMS: TeamInfo[] = [
 ];
 
 export const TEAMS: TeamInfo[] = [...DEFAULT_TEAMS];
+
+export const DEFAULT_ORIGENS: OrigemOption[] = [
+  { id: 'matriz', nome: 'Matriz', emoji: '🏢' },
+  { id: 'filial', nome: 'Filial', emoji: '🏬' },
+];
 
 export const EQ_EMOJI: Record<string, string> = {
   Farol: '🗼',

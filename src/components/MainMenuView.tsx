@@ -3,9 +3,10 @@ import { FormType } from '../types';
 interface MainMenuViewProps {
   onSelectForm: (type: FormType) => void;
   onOpenEquipeModal?: () => void;
+  onOpenOrigemModal?: () => void;
 }
 
-export function MainMenuView({ onSelectForm, onOpenEquipeModal }: MainMenuViewProps) {
+export function MainMenuView({ onSelectForm, onOpenEquipeModal, onOpenOrigemModal }: MainMenuViewProps) {
   return (
     <div className="py-2">
       <div className="menu-title flex items-center gap-2">
@@ -61,16 +62,28 @@ export function MainMenuView({ onSelectForm, onOpenEquipeModal }: MainMenuViewPr
         </button>
       </div>
 
-      {onOpenEquipeModal && (
-        <div className="pt-4 flex justify-center">
-          <button
-            type="button"
-            className="text-xs font-mono font-semibold text-[var(--ink2)] hover:text-[var(--solar-dark)] bg-[var(--surface)] hover:bg-[var(--solar-bg)] border border-[var(--border2)] hover:border-[var(--solar-bd)] px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 shadow-xs cursor-pointer"
-            onClick={onOpenEquipeModal}
-            title="Gerenciar nomes e ícones das equipes"
-          >
-            <span>⚙️</span> Personalizar Equipes (Ícones e Nomes)
-          </button>
+      {(onOpenEquipeModal || onOpenOrigemModal) && (
+        <div className="pt-4 flex flex-wrap items-center justify-center gap-2">
+          {onOpenEquipeModal && (
+            <button
+              type="button"
+              className="text-xs font-mono font-semibold text-[var(--ink2)] hover:text-[var(--solar-dark)] bg-[var(--surface)] hover:bg-[var(--solar-bg)] border border-[var(--border2)] hover:border-[var(--solar-bd)] px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+              onClick={onOpenEquipeModal}
+              title="Gerenciar nomes e ícones das equipes"
+            >
+              <span>⚙️</span> Equipes
+            </button>
+          )}
+          {onOpenOrigemModal && (
+            <button
+              type="button"
+              className="text-xs font-mono font-semibold text-[var(--ink2)] hover:text-[var(--solar-dark)] bg-[var(--surface)] hover:bg-[var(--solar-bg)] border border-[var(--border2)] hover:border-[var(--solar-bd)] px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+              onClick={onOpenOrigemModal}
+              title="Acrescentar e editar opções de origem (Matriz, Filial, etc.)"
+            >
+              <span>⚙️</span> Origens
+            </button>
+          )}
         </div>
       )}
     </div>

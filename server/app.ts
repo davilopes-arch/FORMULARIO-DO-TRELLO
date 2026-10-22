@@ -17,6 +17,11 @@ import {
   updateTeam,
   removeTeam,
   resetTeams,
+  getOrigens,
+  addOrigem,
+  updateOrigem,
+  removeOrigem,
+  resetOrigens,
   syncWithTrelloCloud,
   type TeamName,
 } from './rcaService.ts';
@@ -211,6 +216,57 @@ apiRouter.post('/teams/delete', handleTeamDelete);
 
 apiRouter.post('/teams/reset', async (req, res) => {
   const result = await resetTeams();
+  res.json(result);
+});
+
+// 8. Origens Management (Editable name and icon/emoji with persistence)
+apiRouter.get('/origens', async (req, res) => {
+  await syncWithTrelloCloud().catch(() => {});
+  res.json(getOrigens());
+});
+
+apiRouter.post('/origens', async (req, res) => {
+  const { nome, emoji } = req.body;
+  if (!nome) return res.status(400).json({ error: 'Nome da origem é obrigatório' });
+  const result = await addOrigem(nome, emoji || '🏢');
+  if (!result.success) return res.status(400).json(result);
+  res.status(201).json(result);
+});
+apiRouter.post('/origens/add', async (req, res) => {
+  const { nome, emoji } = req.body;
+  if (!nome) return res.status(400).json({ error: 'Nome da origem é obrigatório' });
+  const result = await addOrigem(nome, emoji || '🏢');
+  if (!result.success) return res.status(400).json(result);
+  res.status(201).json(result);
+});
+
+const handleOrigemUpdate = async (req: express.Request, res: express.Response) => {
+  const id = req.params.id || req.body.id;
+  const { nome, emoji } = req.body;
+  if (!id) return res.status(400).json({ error: 'ID ou nome da origem é obrigatório' });
+  const result = await updateOrigem(id, { nome, emoji });
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+};
+
+apiRouter.put('/origens/:id', handleOrigemUpdate);
+apiRouter.put('/origens', handleOrigemUpdate);
+apiRouter.post('/origens/update', handleOrigemUpdate);
+
+const handleOrigemDelete = async (req: express.Request, res: express.Response) => {
+  const id = req.params.id || req.body.id;
+  if (!id) return res.status(400).json({ error: 'ID da origem é obrigatório' });
+  const result = await removeOrigem(id);
+  if (!result.success) return res.status(400).json(result);
+  res.json(result);
+};
+
+apiRouter.delete('/origens/:id', handleOrigemDelete);
+apiRouter.delete('/origens', handleOrigemDelete);
+apiRouter.post('/origens/delete', handleOrigemDelete);
+
+apiRouter.post('/origens/reset', async (req, res) => {
+  const result = await resetOrigens();
   res.json(result);
 });
 

@@ -4,8 +4,9 @@ import {
   RCAInfo,
   TeamInfo,
   TeamName,
+  OrigemOption,
 } from '../types';
-import { TEAMS } from '../data/constants';
+import { TEAMS, DEFAULT_ORIGENS } from '../data/constants';
 import { AnexoUpload } from './AnexoUpload';
 import { RcaModal } from './RcaModal';
 import { validateDocument } from '../utils/validators';
@@ -17,7 +18,9 @@ interface CadastroFormProps {
   statusText?: string;
   rcasByTeam: Record<TeamName, string[]>;
   teams?: TeamInfo[];
+  origens?: OrigemOption[];
   onOpenEquipeModal?: () => void;
+  onOpenOrigemModal?: () => void;
   isAdmin: boolean;
   onAddRCA: (team: TeamName, name: string) => Promise<void>;
   onRenameRCA: (team: TeamName, oldName: string, newName: string) => Promise<void>;
@@ -43,7 +46,9 @@ export function CadastroForm({
   statusText,
   rcasByTeam,
   teams = TEAMS,
+  origens = DEFAULT_ORIGENS,
   onOpenEquipeModal,
+  onOpenOrigemModal,
   isAdmin,
   onAddRCA,
   onRenameRCA,
@@ -243,30 +248,38 @@ export function CadastroForm({
             <div className="field-label">
               Origem <span className="req">*</span>
             </div>
+            {onOpenOrigemModal && (
+              <button
+                type="button"
+                className="text-xs font-mono font-bold text-[var(--ink2)] hover:text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface2)] border border-[var(--border2)] px-2.5 py-1 rounded transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                onClick={onOpenOrigemModal}
+                title="Acrescentar e editar opções de origem"
+              >
+                <span>⚙️</span> Editar Origens
+              </button>
+            )}
           </div>
           <div className="toggle-row">
-            <div
-              className={`toggle-opt ${formData.origem === 'MATRIZ' ? 'sel' : ''}`}
-              id="ctog-matriz"
-              onClick={() => {
-                setFormData((prev) => ({ ...prev, origem: 'MATRIZ' }));
-                clearError('origem');
-              }}
-            >
-              <span className="tog-icon">🏢</span>
-              Matriz
-            </div>
-            <div
-              className={`toggle-opt ${formData.origem === 'FILIAL' ? 'sel' : ''}`}
-              id="ctog-filial"
-              onClick={() => {
-                setFormData((prev) => ({ ...prev, origem: 'FILIAL' }));
-                clearError('origem');
-              }}
-            >
-              <span className="tog-icon">🏬</span>
-              Filial
-            </div>
+            {origens.map((opt) => {
+              const isSelected =
+                Boolean(formData.origem) &&
+                (formData.origem?.trim().toUpperCase() === opt.nome.trim().toUpperCase() ||
+                  formData.origem?.trim().toUpperCase() === opt.id.trim().toUpperCase());
+              return (
+                <div
+                  key={opt.id}
+                  className={`toggle-opt ${isSelected ? 'sel' : ''}`}
+                  id={`ctog-${opt.id}`}
+                  onClick={() => {
+                    setFormData((prev) => ({ ...prev, origem: opt.nome }));
+                    clearError('origem');
+                  }}
+                >
+                  <span className="tog-icon">{opt.emoji || '🏢'}</span>
+                  {opt.nome}
+                </div>
+              );
+            })}
           </div>
           {errors.origem && <div className="field-err">Selecione a origem.</div>}
         </div>

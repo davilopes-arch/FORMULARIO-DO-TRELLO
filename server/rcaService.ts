@@ -57,6 +57,17 @@ const DEFAULT_RCAS: Record<string, string[]> = {
   ],
 };
 
+export interface OrigemOption {
+  id: string;
+  nome: string;
+  emoji: string;
+}
+
+export const DEFAULT_ORIGENS: OrigemOption[] = [
+  { id: 'matriz', nome: 'Matriz', emoji: '🏢' },
+  { id: 'filial', nome: 'Filial', emoji: '🏬' },
+];
+
 const DATA_DIR =
   process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
     ? path.join('/tmp', 'data')
@@ -64,6 +75,7 @@ const DATA_DIR =
 
 let currentTeams: TeamInfo[] = [...DEFAULT_TEAMS];
 let currentRCAs: Record<string, string[]> = { ...DEFAULT_RCAS };
+let currentOrigens: OrigemOption[] = [...DEFAULT_ORIGENS];
 
 function loadFromDisk() {
   const possiblePaths = [
@@ -99,6 +111,24 @@ function loadFromDisk() {
       }
     } catch {}
   }
+
+  const possibleOrigemPaths = [
+    path.join(DATA_DIR, 'origens.json'),
+    path.join(process.cwd(), 'data', 'origens.json'),
+    path.join('/tmp', 'data', 'origens.json'),
+  ];
+  for (const p of possibleOrigemPaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const data = fs.readFileSync(p, 'utf-8');
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          currentOrigens = parsed;
+          break;
+        }
+      }
+    } catch {}
+  }
 }
 
 function saveRcasToDisk() {
@@ -127,6 +157,19 @@ function saveTeamsToDisk() {
   }
 }
 
+function saveOrigensToDisk() {
+  const dirs = [DATA_DIR, path.join('/tmp', 'data')];
+  for (const dir of dirs) {
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(dir, 'origens.json'), JSON.stringify(currentOrigens, null, 2), 'utf-8');
+      break;
+    } catch {}
+  }
+}
+
 // Initial load
 loadFromDisk();
 
@@ -144,6 +187,10 @@ export async function syncWithTrelloCloud(): Promise<void> {
         currentRCAs = { ...DEFAULT_RCAS, ...config.rcas };
         saveRcasToDisk();
       }
+      if (Array.isArray(config.origens) && config.origens.length > 0) {
+        currentOrigens = config.origens;
+        saveOrigensToDisk();
+      }
       isTrelloSynced = true;
     }
   } catch (err) {
@@ -157,8 +204,9 @@ syncWithTrelloCloud().catch(() => {});
 async function persistAll(): Promise<void> {
   saveTeamsToDisk();
   saveRcasToDisk();
+  saveOrigensToDisk();
   try {
-    await savePortalConfigToTrello({ teams: currentTeams, rcas: currentRCAs });
+    await savePortalConfigToTrello({ teams: currentTeams, rcas: currentRCAs, origens: currentOrigens });
   } catch (err) {
     console.error('Erro ao persistir no Trello:', err);
   }
@@ -316,4 +364,87 @@ export async function removeRCA(team: string, name: string): Promise<{ success: 
   currentRCAs[key] = list.filter((n) => n.trim().toUpperCase() !== cleanTarget);
   await persistAll();
   return { success: true };
+}
+
+// --- ORIGENS MANAGEMENT ---
+
+export function getOrigens(): OrigemOption[] {
+  return currentOrigens;
+}
+
+export async function addOrigem(
+  nome: string,
+  emoji: string
+): Promise<{ success: boolean; error?: string; origens?: OrigemOption[] }> {
+  await syncWithTrelloCloud().catch(() => {});
+  const cleanNome = nome.trim();
+  const cleanEmoji = emoji.trim() || '🏢';
+  if (!cleanNome) return { success: false, error: 'Nome da origem é obrigatório' };
+
+  const exists = currentOrigens.some(
+    (o) => o.nome.toLowerCase() === cleanNome.toLowerCase()
+  );
+  if (exists) return { success: false, error: 'Já existe uma origem com este nome' };
+
+  const id =
+    cleanNome.toLowerCase().replace(/[^a-z0-9]/g, '') +
+    '_' +
+    Date.now().toString(36);
+  const newOrigem: OrigemOption = { id, nome: cleanNome, emoji: cleanEmoji };
+  currentOrigens.push(newOrigem);
+
+  await persistAll();
+  return { success: true, origens: currentOrigens };
+}
+
+export async function updateOrigem(
+  id: string,
+  updates: { nome?: string; emoji?: string }
+): Promise<{ success: boolean; error?: string; origens?: OrigemOption[] }> {
+  await syncWithTrelloCloud().catch(() => {});
+  const origem = currentOrigens.find(
+    (o) => o.id === id || o.nome.toLowerCase() === id.toLowerCase()
+  );
+  if (!origem) return { success: false, error: 'Origem não encontrada' };
+
+  if (updates.nome !== undefined) {
+    const cleanNome = updates.nome.trim();
+    if (!cleanNome) return { success: false, error: 'Nome da origem não pode ser vazio' };
+
+    const duplicate = currentOrigens.some(
+      (o) => o.id !== origem.id && o.nome.toLowerCase() === cleanNome.toLowerCase()
+    );
+    if (duplicate) return { success: false, error: 'Já existe outra origem com este nome' };
+
+    origem.nome = cleanNome;
+  }
+
+  if (updates.emoji !== undefined) {
+    origem.emoji = updates.emoji.trim() || origem.emoji || '🏢';
+  }
+
+  await persistAll();
+  return { success: true, origens: currentOrigens };
+}
+
+export async function removeOrigem(
+  id: string
+): Promise<{ success: boolean; error?: string; origens?: OrigemOption[] }> {
+  await syncWithTrelloCloud().catch(() => {});
+  if (currentOrigens.length <= 1) {
+    return { success: false, error: 'Pelo menos uma opção de origem deve ser mantida' };
+  }
+
+  currentOrigens = currentOrigens.filter(
+    (o) => o.id !== id && o.nome.toLowerCase() !== id.toLowerCase()
+  );
+
+  await persistAll();
+  return { success: true, origens: currentOrigens };
+}
+
+export async function resetOrigens(): Promise<{ success: boolean; origens: OrigemOption[] }> {
+  currentOrigens = [...DEFAULT_ORIGENS];
+  await persistAll();
+  return { success: true, origens: currentOrigens };
 }

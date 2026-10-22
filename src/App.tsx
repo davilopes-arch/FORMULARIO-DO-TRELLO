@@ -8,8 +8,9 @@ import {
   TeamInfo,
   TeamName,
   CardSummaryData,
+  OrigemOption,
 } from './types';
-import { ADMIN_EMAIL, INITIAL_RCAS, DEFAULT_TEAMS, isTeamLabel } from './data/constants';
+import { ADMIN_EMAIL, INITIAL_RCAS, DEFAULT_TEAMS, DEFAULT_ORIGENS, isTeamLabel } from './data/constants';
 import { FALLBACK_BOARD_DATA } from './data/defaultBoardData';
 import {
   fetchBoardData,
@@ -26,6 +27,11 @@ import {
   updateTeamApi,
   deleteTeamApi,
   resetTeamsApi,
+  fetchOrigens,
+  addOrigemApi,
+  updateOrigemApi,
+  deleteOrigemApi,
+  resetOrigensApi,
   savePortalConfigToTrelloDirect,
 } from './services/api';
 import { Header } from './components/Header';
@@ -37,6 +43,7 @@ import { CadastroForm } from './components/CadastroForm';
 import { SuccessView } from './components/SuccessView';
 import { SuccessModal } from './components/SuccessModal';
 import { EquipeModal } from './components/EquipeModal';
+import { OrigemModal } from './components/OrigemModal';
 
 type ViewState =
   | 'loading'
@@ -72,7 +79,18 @@ export default function App() {
     } catch {}
     return DEFAULT_TEAMS;
   });
+  const [origens, setOrigens] = useState<OrigemOption[]>(() => {
+    try {
+      const saved = localStorage.getItem('cx_origens_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return DEFAULT_ORIGENS;
+  });
   const [isEquipeModalOpen, setIsEquipeModalOpen] = useState(false);
+  const [isOrigemModalOpen, setIsOrigemModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -98,8 +116,8 @@ export default function App() {
     setErrorMessage('');
 
     try {
-      // Fetch board data, RCAs and Teams from backend with bulletproof fallbacks
-      const [boardResp, rcaResp, teamsResp] = await Promise.all([
+      // Fetch board data, RCAs, Teams and Origens from backend with bulletproof fallbacks
+      const [boardResp, rcaResp, teamsResp, origensResp] = await Promise.all([
         fetchBoardData().catch((err) => {
           console.warn('Erro ao carregar boardData, usando fallback:', err);
           return FALLBACK_BOARD_DATA;
@@ -110,6 +128,10 @@ export default function App() {
         }),
         fetchTeams().catch((err) => {
           console.warn('Erro ao carregar Equipes do backend:', err);
+          return null;
+        }),
+        fetchOrigens().catch((err) => {
+          console.warn('Erro ao carregar Origens do backend:', err);
           return null;
         }),
       ]);
@@ -143,6 +165,22 @@ export default function App() {
             const parsed = JSON.parse(localTeams);
             if (Array.isArray(parsed) && parsed.length > 0) {
               setTeams(parsed);
+            }
+          } catch {}
+        }
+      }
+
+      // Handle Origens
+      if (Array.isArray(origensResp) && origensResp.length > 0) {
+        setOrigens(origensResp);
+        localStorage.setItem('cx_origens_data', JSON.stringify(origensResp));
+      } else {
+        const localOrigens = localStorage.getItem('cx_origens_data');
+        if (localOrigens) {
+          try {
+            const parsed = JSON.parse(localOrigens);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setOrigens(parsed);
             }
           } catch {}
         }
@@ -417,6 +455,100 @@ export default function App() {
       console.warn('Backend sync failed, reset kept locally:', err);
     } finally {
       await savePortalConfigToTrelloDirect({ teams: nextList, rcas: nextRcas }).catch(() => {});
+    }
+  };
+
+  // Origem Admin Handlers
+  const handleUpdateOrigem = async (id: string, updates: { nome?: string; emoji?: string }) => {
+    const currentList = [...origens];
+    const idx = currentList.findIndex((o) => o.id === id || o.nome.toLowerCase() === id.toLowerCase());
+    let nextList = currentList;
+    if (idx !== -1) {
+      nextList = [
+        ...currentList.slice(0, idx),
+        {
+          ...currentList[idx],
+          nome: updates.nome?.trim() || currentList[idx].nome,
+          emoji: updates.emoji?.trim() || currentList[idx].emoji,
+        },
+        ...currentList.slice(idx + 1),
+      ];
+    }
+    setOrigens(nextList);
+    localStorage.setItem('cx_origens_data', JSON.stringify(nextList));
+
+    try {
+      const resp = await updateOrigemApi(id, updates);
+      if (resp && Array.isArray(resp.origens) && resp.origens.length > 0) {
+        setOrigens(resp.origens);
+        localStorage.setItem('cx_origens_data', JSON.stringify(resp.origens));
+        nextList = resp.origens;
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, saving directly to Trello:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ origens: nextList }).catch(() => {});
+    }
+  };
+
+  const handleAddOrigem = async (nome: string, emoji: string) => {
+    const cleanNome = nome.trim();
+    const cleanEmoji = emoji.trim() || '🏢';
+    const newId = cleanNome.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+    const newOrigem: OrigemOption = { id: newId, nome: cleanNome, emoji: cleanEmoji };
+    let nextList = [...origens, newOrigem];
+
+    setOrigens(nextList);
+    localStorage.setItem('cx_origens_data', JSON.stringify(nextList));
+
+    try {
+      const resp = await addOrigemApi(cleanNome, cleanEmoji);
+      if (resp && Array.isArray(resp.origens) && resp.origens.length > 0) {
+        setOrigens(resp.origens);
+        localStorage.setItem('cx_origens_data', JSON.stringify(resp.origens));
+        nextList = resp.origens;
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, saving directly to Trello:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ origens: nextList }).catch(() => {});
+    }
+  };
+
+  const handleDeleteOrigem = async (id: string) => {
+    let nextList = origens.filter((o) => o.id !== id && o.nome.toLowerCase() !== id.toLowerCase());
+    setOrigens(nextList);
+    localStorage.setItem('cx_origens_data', JSON.stringify(nextList));
+
+    try {
+      const resp = await deleteOrigemApi(id);
+      if (resp && Array.isArray(resp.origens) && resp.origens.length > 0) {
+        setOrigens(resp.origens);
+        localStorage.setItem('cx_origens_data', JSON.stringify(resp.origens));
+        nextList = resp.origens;
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, saving directly to Trello:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ origens: nextList }).catch(() => {});
+    }
+  };
+
+  const handleResetOrigens = async () => {
+    const defaults = DEFAULT_ORIGENS;
+    setOrigens(defaults);
+    localStorage.setItem('cx_origens_data', JSON.stringify(defaults));
+
+    try {
+      const resp = await resetOrigensApi();
+      if (resp && Array.isArray(resp.origens) && resp.origens.length > 0) {
+        setOrigens(resp.origens);
+        localStorage.setItem('cx_origens_data', JSON.stringify(resp.origens));
+      }
+    } catch (err) {
+      console.warn('Backend sync failed, reset kept locally:', err);
+    } finally {
+      await savePortalConfigToTrelloDirect({ origens: defaults }).catch(() => {});
     }
   };
 
@@ -778,6 +910,7 @@ export default function App() {
         <MainMenuView
           onSelectForm={handleSelectForm}
           onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
+          onOpenOrigemModal={() => setIsOrigemModalOpen(true)}
         />
       )}
 
@@ -791,7 +924,9 @@ export default function App() {
           labels={boardData.labels}
           rcasByTeam={rcasByTeam}
           teams={teams}
+          origens={origens}
           onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
+          onOpenOrigemModal={() => setIsOrigemModalOpen(true)}
           isAdmin={isAdmin}
           onAddRCA={handleAddRCA}
           onRenameRCA={handleRenameRCA}
@@ -811,7 +946,9 @@ export default function App() {
           statusText={statusText}
           rcasByTeam={rcasByTeam}
           teams={teams}
+          origens={origens}
           onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
+          onOpenOrigemModal={() => setIsOrigemModalOpen(true)}
           isAdmin={isAdmin}
           onAddRCA={handleAddRCA}
           onRenameRCA={handleRenameRCA}
@@ -828,7 +965,9 @@ export default function App() {
           statusText={statusText}
           rcasByTeam={rcasByTeam}
           teams={teams}
+          origens={origens}
           onOpenEquipeModal={isAdmin ? () => setIsEquipeModalOpen(true) : undefined}
+          onOpenOrigemModal={() => setIsOrigemModalOpen(true)}
           isAdmin={isAdmin}
           onAddRCA={handleAddRCA}
           onRenameRCA={handleRenameRCA}
@@ -884,6 +1023,17 @@ export default function App() {
           onResetTeams={handleResetTeams}
         />
       )}
+
+      {/* MODAL GERENCIAMENTO DE ORIGENS */}
+      <OrigemModal
+        isOpen={isOrigemModalOpen}
+        onClose={() => setIsOrigemModalOpen(false)}
+        origens={origens}
+        onUpdateOrigem={handleUpdateOrigem}
+        onAddOrigem={handleAddOrigem}
+        onRemoveOrigem={handleDeleteOrigem}
+        onResetOrigens={handleResetOrigens}
+      />
     </div>
   );
 }

@@ -401,10 +401,12 @@ body::before {
 /* TOGGLE ROW */
 .toggle-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .toggle-opt {
   flex: 1;
+  min-width: 120px;
   border: 1.5px solid var(--border2);
   border-radius: 6px;
   padding: 12px;

@@ -366,7 +366,7 @@ const CONFIG_CARD_NAME = '⚙️ [SISTEMA] Configurações de Equipes e RCAs (Po
 const CONFIG_LIST_ID = '69713bd2d3693600213b526a'; // List EXEMPLOS
 let configCardIdCache: string | null = null;
 
-export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rcas?: Record<string, string[]> } | null> {
+export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rcas?: Record<string, string[]>; origens?: any[] } | null> {
   // 1. Primary: Fetch from Board Description (indestructible, permanent, never deleted by card cleanup)
   try {
     const board = await trelloFetch<{ id: string; name: string; desc: string }>(
@@ -378,13 +378,13 @@ export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rc
       const match = board.desc.match(/<!-- PORTAL_CONFIG_START -->([\s\S]*?)<!-- PORTAL_CONFIG_END -->/);
       if (match && match[1]) {
         const parsed = JSON.parse(match[1]);
-        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas || Array.isArray(parsed.origens))) {
           return parsed;
         }
       }
       try {
         const parsed = JSON.parse(board.desc);
-        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas)) {
+        if (parsed && (Array.isArray(parsed.teams) || parsed.rcas || Array.isArray(parsed.origens))) {
           return parsed;
         }
       } catch {}
@@ -438,11 +438,12 @@ export async function fetchPortalConfigFromTrello(): Promise<{ teams?: any[]; rc
   return null;
 }
 
-export async function savePortalConfigToTrello(data: { teams: any[]; rcas: Record<string, string[]> }): Promise<boolean> {
+export async function savePortalConfigToTrello(data: { teams?: any[]; rcas?: Record<string, string[]>; origens?: any[] }): Promise<boolean> {
   try {
     const payload = {
       teams: data.teams,
       rcas: data.rcas,
+      origens: data.origens,
       lastUpdated: new Date().toISOString(),
     };
     const jsonStr = JSON.stringify(payload, null, 2);
