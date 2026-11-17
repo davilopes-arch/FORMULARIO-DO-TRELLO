@@ -58,6 +58,10 @@ export interface DemandasFormData {
   nfFutura: string;
   nfSaida: string;
   transportadora: string;
+  preVendaDia: string;
+  previsaoExpedicao: string;
+  pedidoCriadoEm: string;
+  formaPagamento: string;
   situacaoIds: string[];
   descricao: string;
   anexos: AttachmentItem[];
@@ -110,6 +114,11 @@ export interface CardSummaryData {
   cpfCnpj?: string;
   cep?: string;
   linkOrcamento?: string;
+  transportadora?: string;
+  preVendaDia?: string;
+  previsaoExpedicao?: string;
+  pedidoCriadoEm?: string;
+  formaPagamento?: string;
   situacoesNomes?: string[];
 }
 

@@ -224,7 +224,10 @@ export async function createCardWithDetails(payload: CreateCardPayload) {
         const cfId =
           boardData.customFields[fieldName.toUpperCase()] ||
           boardData.customFields[normName] ||
-          Object.entries(boardData.customFields).find(([k]) => k.includes(normName.split(' ')[0]))?.[1];
+          Object.entries(boardData.customFields).find(([k]) => {
+            const normK = k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+            return normK === normName || normK.includes(normName) || normName.includes(normK);
+          })?.[1];
 
         if (!cfId) {
           return;

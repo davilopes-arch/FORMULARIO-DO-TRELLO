@@ -38,6 +38,11 @@ export function SuccessView({
       if (summary.pedido) lines.push(`📦 *Nº Pedido:* ${summary.pedido}`);
       if (summary.protocolo) lines.push(`🎫 *Protocolo:* ${summary.protocolo}`);
       if (summary.idClienteOuIntegrador) lines.push(`🔗 *ID Integrador:* ${summary.idClienteOuIntegrador}`);
+      if (summary.transportadora) lines.push(`🚚 *Transportadora:* ${summary.transportadora}`);
+      if (summary.preVendaDia) lines.push(`📅 *Pré-venda para o dia:* ${summary.preVendaDia}`);
+      if (summary.previsaoExpedicao) lines.push(`📆 *Previsão de Expedição:* ${summary.previsaoExpedicao}`);
+      if (summary.pedidoCriadoEm) lines.push(`🗓️ *Pedido Criado em:* ${summary.pedidoCriadoEm}`);
+      if (summary.formaPagamento) lines.push(`💳 *Forma de Pagamento:* ${summary.formaPagamento}`);
       if (summary.situacoesNomes && summary.situacoesNomes.length > 0) {
         lines.push(`🏷️ *Situações:* ${summary.situacoesNomes.join(', ')}`);
       }

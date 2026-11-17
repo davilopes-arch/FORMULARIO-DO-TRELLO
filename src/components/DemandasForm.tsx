@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Calendar } from 'lucide-react';
 import {
   DemandasFormData,
   RCAInfo,
@@ -43,10 +44,26 @@ const INITIAL_STATE: DemandasFormData = {
   nfFutura: '',
   nfSaida: '',
   transportadora: '',
+  preVendaDia: '',
+  previsaoExpedicao: '',
+  pedidoCriadoEm: '',
+  formaPagamento: '',
   situacaoIds: [],
   descricao: '',
   anexos: [],
 };
+
+function formatIsoToBr(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function formatBrToIso(br: string): string {
+  const m = br.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
 
 export function DemandasForm({
   onBackToMenu,
@@ -417,6 +434,155 @@ export function DemandasForm({
           />
         </div>
 
+        {/* PRÉ-VENDA PARA O DIA */}
+        <div className="field" id="f-prevenda">
+          <div className="field-head">
+            <div className="field-label">Pré-venda para o dia</div>
+            <div className="field-hint">opcional</div>
+          </div>
+          <div className="relative flex items-center gap-2">
+            <input
+              type="text"
+              className="custom-input flex-1"
+              id="i-prevenda"
+              placeholder="Ex: DD/MM/AAAA"
+              value={formData.preVendaDia}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData((prev) => ({ ...prev, preVendaDia: val }));
+              }}
+            />
+            <label
+              className="relative flex items-center justify-center w-8 h-8 rounded border border-[var(--border2)] bg-[var(--surface)] hover:border-[var(--solar)] text-[var(--ink2)] hover:text-[var(--solar-dark)] transition-colors cursor-pointer flex-shrink-0"
+              title="Selecionar data no calendário"
+            >
+              <Calendar className="w-4 h-4 pointer-events-none" />
+              <input
+                type="date"
+                aria-label="Selecionar data de pré-venda"
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                value={formatBrToIso(formData.preVendaDia)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setFormData((prev) => ({ ...prev, preVendaDia: formatIsoToBr(e.target.value) }));
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* PREVISÃO DE EXPEDIÇÃO */}
+        <div className="field" id="f-prevexp">
+          <div className="field-head">
+            <div className="field-label">Previsão de Expedição</div>
+            <div className="field-hint">opcional</div>
+          </div>
+          <div className="relative flex items-center gap-2">
+            <input
+              type="text"
+              className="custom-input flex-1"
+              id="i-prevexp"
+              placeholder="Ex: DD/MM/AAAA"
+              value={formData.previsaoExpedicao}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData((prev) => ({ ...prev, previsaoExpedicao: val }));
+              }}
+            />
+            <label
+              className="relative flex items-center justify-center w-8 h-8 rounded border border-[var(--border2)] bg-[var(--surface)] hover:border-[var(--solar)] text-[var(--ink2)] hover:text-[var(--solar-dark)] transition-colors cursor-pointer flex-shrink-0"
+              title="Selecionar data no calendário"
+            >
+              <Calendar className="w-4 h-4 pointer-events-none" />
+              <input
+                type="date"
+                aria-label="Selecionar previsão de expedição"
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                value={formatBrToIso(formData.previsaoExpedicao)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      previsaoExpedicao: formatIsoToBr(e.target.value),
+                    }));
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* PEDIDO CRIADO EM */}
+        <div className="field" id="f-pedidocriado">
+          <div className="field-head">
+            <div className="field-label">Pedido Criado em</div>
+            <div className="field-hint">opcional</div>
+          </div>
+          <div className="relative flex items-center gap-2">
+            <input
+              type="text"
+              className="custom-input flex-1"
+              id="i-pedidocriado"
+              placeholder="Ex: DD/MM/AAAA"
+              value={formData.pedidoCriadoEm}
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData((prev) => ({ ...prev, pedidoCriadoEm: val }));
+              }}
+            />
+            <label
+              className="relative flex items-center justify-center w-8 h-8 rounded border border-[var(--border2)] bg-[var(--surface)] hover:border-[var(--solar)] text-[var(--ink2)] hover:text-[var(--solar-dark)] transition-colors cursor-pointer flex-shrink-0"
+              title="Selecionar data no calendário"
+            >
+              <Calendar className="w-4 h-4 pointer-events-none" />
+              <input
+                type="date"
+                aria-label="Selecionar data de criação do pedido"
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                value={formatBrToIso(formData.pedidoCriadoEm)}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      pedidoCriadoEm: formatIsoToBr(e.target.value),
+                    }));
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* FORMA DE PAGAMENTO */}
+        <div className="field" id="f-formapag">
+          <div className="field-head">
+            <div className="field-label">Forma de Pagamento</div>
+            <div className="field-hint">opcional</div>
+          </div>
+          <input
+            type="text"
+            className="custom-input"
+            id="i-formapag"
+            list="demandas-formas-pagamento"
+            placeholder="Ex: Pix, Boleto, Cartão de Crédito, Financiamento..."
+            value={formData.formaPagamento}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFormData((prev) => ({ ...prev, formaPagamento: val }));
+            }}
+          />
+          <datalist id="demandas-formas-pagamento">
+            <option value="Pix" />
+            <option value="Boleto Bancário" />
+            <option value="Cartão de Crédito" />
+            <option value="Financiamento" />
+            <option value="Sou Cred" />
+            <option value="Transferência / TED" />
+            <option value="À Vista" />
+          </datalist>
+        </div>
+
         {/* SITUAÇÃO / ETIQUETAS */}
         <div className={`field ${errors.situacao ? 'invalid' : ''}`} id="f-situacao">
           <div className="field-head">
@@ -576,6 +742,26 @@ export function DemandasForm({
                 {formData.transportadora && (
                   <div className="preview-meta-item">
                     Transp.: <strong>{formData.transportadora}</strong>
+                  </div>
+                )}
+                {formData.preVendaDia && (
+                  <div className="preview-meta-item">
+                    Pré-venda: <strong>{formData.preVendaDia}</strong>
+                  </div>
+                )}
+                {formData.previsaoExpedicao && (
+                  <div className="preview-meta-item">
+                    Prev. Expedição: <strong>{formData.previsaoExpedicao}</strong>
+                  </div>
+                )}
+                {formData.pedidoCriadoEm && (
+                  <div className="preview-meta-item">
+                    Pedido Criado em: <strong>{formData.pedidoCriadoEm}</strong>
+                  </div>
+                )}
+                {formData.formaPagamento && (
+                  <div className="preview-meta-item">
+                    Pagamento: <strong>{formData.formaPagamento}</strong>
                   </div>
                 )}
               </div>

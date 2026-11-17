@@ -609,6 +609,10 @@ export default function App() {
         data.nfFutura && `🧾 NF Futura: ${data.nfFutura}`,
         data.nfSaida && `🧾 NF Saída: ${data.nfSaida}`,
         data.transportadora && `🚚 Transportadora: ${data.transportadora}`,
+        data.preVendaDia && `📅 Pré-venda para o dia: ${data.preVendaDia}`,
+        data.previsaoExpedicao && `📆 Previsão de Expedição: ${data.previsaoExpedicao}`,
+        data.pedidoCriadoEm && `🗓️ Pedido Criado em: ${data.pedidoCriadoEm}`,
+        data.formaPagamento && `💳 Forma de Pagamento: ${data.formaPagamento}`,
         `---`,
         `📋 *Descrição da Situação:*\n${data.descricao}`,
       ]
@@ -645,6 +649,10 @@ export default function App() {
           'NF FUTURA': data.nfFutura,
           'NF DE SAÍDA': data.nfSaida,
           'TRANSPORTADORA': data.transportadora,
+          'PRÉ-VENDA PARA O DIA': data.preVendaDia,
+          'PREVISÃO DE EXPEDIÇÃO': data.previsaoExpedicao,
+          'PEDIDO CRIADO EM': data.pedidoCriadoEm,
+          'FORMA DE PAGAMENTO': data.formaPagamento,
           'DESCRIÇÃO DA SITUAÇÃO': data.descricao,
         },
         attachments: data.anexos.map((a) => ({
@@ -670,6 +678,11 @@ export default function App() {
         pedido: data.pedido,
         protocolo: data.protocolo,
         idClienteOuIntegrador: data.idint,
+        transportadora: data.transportadora,
+        preVendaDia: data.preVendaDia,
+        previsaoExpedicao: data.previsaoExpedicao,
+        pedidoCriadoEm: data.pedidoCriadoEm,
+        formaPagamento: data.formaPagamento,
         situacoesNomes,
       });
       setIsSuccessModalOpen(true);
